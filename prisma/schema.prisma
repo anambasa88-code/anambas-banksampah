@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model UnitBankSampah {
+  id_unit          Int              @id @default(autoincrement())
+  nama_unit        String           @unique @db.VarChar(50)
+  alamat_unit      String
+  harga_lokal_unit HargaLokalUnit[]
+  history_harga    HistoryHarga[]
+  users            User[]
+
+  @@map("unit_bank_sampah")
+}
+
+model User {
+  id_user                 Int              @id @default(autoincrement())
+  nickname                String           @unique @db.VarChar(20)
+  nama_lengkap            String           @db.VarChar(100)
+  nik                     String?           @unique @db.VarChar(16)
+  jenis_kelamin           JenisKelamin
+  peran                   Peran
+  bank_sampah_id          Int?
+  total_saldo             Decimal          @default(0.00) @db.Decimal(15, 2)
+  pin_hash                String           @db.VarChar(255)
+  wrong_pin_count         Int              @default(0)
+  last_wrong_pin_time     DateTime?
+  is_blocked              Boolean          @default(false)
+  must_change_pin         Boolean          @default(false)
+  is_active               Boolean          @default(true)
+  created_at              DateTime         @default(now())
+  created_by              Int?
+  history_harga_perubah   HistoryHarga[]   @relation("EditorHarga")
+  log_aktivitas           LogAktivitas[]
+  transaksi_setor_nasabah TransaksiSetor[] @relation("SetorNasabah")
+  transaksi_setor_petugas TransaksiSetor[] @relation("SetorPetugas")
+  transaksi_tarik_nasabah TransaksiTarik[] @relation("TarikNasabah")
+  transaksi_tarik_petugas TransaksiTarik[] @relation("TarikPetugas")
+  unit                    UnitBankSampah?  @relation(fields: [bank_sampah_id], references: [id_unit])
+
+  @@index([nickname])
+  @@index([nik])
+  @@index([peran])
+  @@index([bank_sampah_id])
+  @@index([is_blocked])
+  @@map("users")
+}
+
+model MasterSampah {
+  id_barang        Int              @id @default(autoincrement())
+  kategori_utama   KategoriUtama
+  nama_barang      String           @db.VarChar(100)
+  keterangan_pusat String
+  harga_pusat      Decimal          @db.Decimal(15, 2)
+  batas_atas       Decimal          @db.Decimal(15, 2)
+  batas_bawah      Decimal          @db.Decimal(15, 2)
+  is_active        Boolean          @default(true)
+  detail_plastik   DetailPlastik?
+  harga_lokal_unit HargaLokalUnit[]
+  history_harga    HistoryHarga[]
+  transaksi_setor  TransaksiSetor[]
+
+  @@index([kategori_utama])
+  @@index([is_active])
+  @@map("master_sampah")
+}
+
+model HargaLokalUnit {
+  id_harga_lokal Int            @id @default(autoincrement())
+  barang_id      Int
+  bank_sampah_id Int
+  harga_lokal    Decimal        @db.Decimal(15, 2)
+  unit           UnitBankSampah @relation(fields: [bank_sampah_id], references: [id_unit])
+  barang         MasterSampah   @relation(fields: [barang_id], references: [id_barang])
+
+  @@unique([barang_id, bank_sampah_id])
+  @@map("harga_lokal_unit")
+}
+
+model HistoryHarga {
+  id_history      Int             @id @default(autoincrement())
+  barang_id       Int
+  bank_sampah_id  Int?
+  harga_lama      Decimal         @db.Decimal(15, 2)
+  harga_baru      Decimal         @db.Decimal(15, 2)
+  diubah_oleh     Int
+  waktu_perubahan DateTime        @default(now())
+  unit            UnitBankSampah? @relation(fields: [bank_sampah_id], references: [id_unit])
+  barang          MasterSampah    @relation(fields: [barang_id], references: [id_barang])
+  editor          User            @relation("EditorHarga", fields: [diubah_oleh], references: [id_user])
+
+  @@map("history_harga")
+}
+
+model DetailPlastik {
+  barang_id       Int           @id
+  kode_daur_ulang KodeDaurUlang
+  nama_kimia      String        @db.VarChar(100)
+  klasifikasi     String        @db.VarChar(50)
+  barang          MasterSampah  @relation(fields: [barang_id], references: [id_barang])
+
+  @@map("detail_plastik")
+}
+
+model TransaksiSetor {
+  id_setor             String       @id @db.VarChar(20)
+  nasabah_id           Int
+  petugas_id           Int
+  tipe_setoran         TipeSetoran
+  metode_bayar         MetodeBayar  @default(TABUNG)
+  barang_id            Int
+  nama_barang_snapshot String       @db.VarChar(100)
+  berat                Decimal      @db.Decimal(10, 2)
+  harga_deal           Decimal      @db.Decimal(15, 2)
+  total_rp             Decimal      @db.Decimal(15, 2)
+  catatan_petugas      String
+  waktu                DateTime     @default(now())
+  barang               MasterSampah @relation(fields: [barang_id], references: [id_barang])
+  nasabah              User         @relation("SetorNasabah", fields: [nasabah_id], references: [id_user])
+  petugas              User         @relation("SetorPetugas", fields: [petugas_id], references: [id_user])
+
+  @@index([nasabah_id])
+  @@index([petugas_id])
+  @@index([waktu])
+  @@map("transaksi_setor")
+}
+
+model TransaksiTarik {
+  id_tarik      String      @id @db.VarChar(20)
+  nasabah_id    Int
+  petugas_id    Int
+  jumlah_tarik  Decimal     @db.Decimal(15, 2)
+  status        StatusTarik
+  catatan_tarik String?
+  waktu         DateTime    @default(now())
+  nasabah       User        @relation("TarikNasabah", fields: [nasabah_id], references: [id_user])
+  petugas       User        @relation("TarikPetugas", fields: [petugas_id], references: [id_user])
+
+  @@index([nasabah_id])
+  @@index([status])
+  @@index([waktu])
+  @@map("transaksi_tarik")
+}
+
+model LogAktivitas {
+  id_log       Int      @id @default(autoincrement())
+  user_id      Int
+  aksi         String   @db.VarChar(255)
+  detail       String
+  payload_json Json?
+  waktu        DateTime @default(now())
+  user         User     @relation(fields: [user_id], references: [id_user])
+
+  @@index([user_id])
+  @@index([waktu])
+  @@map("log_aktivitas")
+}
+
+enum JenisKelamin {
+  LAKI_LAKI
+  PEREMPUAN
+}
+
+enum Peran {
+  ADMIN
+  PETUGAS
+  NASABAH
+}
+
+enum KategoriUtama {
+  PLASTIK
+  LOGAM
+  KERTAS
+  LAINNYA
+  CAMPURAN
+}
+
+enum KodeDaurUlang {
+  ONE
+  TWO
+  THREE
+  FOUR
+  FIVE
+  SIX
+  SEVEN
+}
+
+enum TipeSetoran {
+  OCEAN_DEBRIS
+  COMMUNITY
+}
+
+enum StatusTarik {
+  PENDING
+  SUKSES
+  DITOLAK
+}
+
+enum MetodeBayar {
+  TABUNG        
+  JUAL_LANGSUNG  
+}
