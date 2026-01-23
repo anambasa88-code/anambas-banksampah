@@ -165,131 +165,95 @@ async getPetugasUnitSummary(unitId) {
 },
 
 async getAdminGlobalSummary() {
-  // Global aggregates
-  const [globalTipeSummary, globalTotalSetor, globalKategoriData, globalNasabahCount, globalGenderCount, globalSetorCount, globalTarikCount, globalMetodeBayarData] = await Promise.all([
-    prisma.transaksiSetor.groupBy({ by: ['tipe_setoran'], _sum: { berat: true } }),
-    prisma.transaksiSetor.aggregate({ _sum: { berat: true, total_rp: true } }),
-    prisma.transaksiSetor.groupBy({ by: ['barang_id'], _sum: { berat: true } }),
-    prisma.user.aggregate({ where: { peran: 'NASABAH' }, _count: { id_user: true } }),
-    prisma.user.groupBy({ by: ['jenis_kelamin'], where: { peran: 'NASABAH' }, _count: { id_user: true } }),
-    prisma.transaksiSetor.count(),
-    prisma.transaksiTarik.count(),
-    prisma.transaksiSetor.groupBy({ by: ['metode_bayar'], _count: { id_setor: true } }),
-  ]);
-
-  // Mapping kategori global
-  const globalBarangIds = [...new Set(globalKategoriData.map(item => item.barang_id))];
-  const globalBarangs = globalBarangIds.length > 0
-    ? await prisma.masterSampah.findMany({
-        where: { id_barang: { in: globalBarangIds } },
-        select: { id_barang: true, kategori_utama: true },
-      })
-    : [];
-  const globalBarangMap = globalBarangs.reduce((acc, b) => { acc[b.id_barang] = b.kategori_utama; return acc; }, {});
-
-  const globalPerKategori = globalKategoriData.reduce((acc, item) => {
-    const kat = globalBarangMap[item.barang_id];
-    if (kat) acc[kat] = (acc[kat] || 0) + Number(item._sum.berat || 0);
-    return acc;
-  }, {});
-
-  const globalPerTipe = globalTipeSummary.reduce((acc, item) => {
-    if (item.tipe_setoran) acc[item.tipe_setoran] = (acc[item.tipe_setoran] || 0) + Number(item._sum.berat || 0);
-    return acc;
-  }, {});
-
-  const globalTotalNasabah = globalNasabahCount._count.id_user || 0;
-  const globalGenderBreakdown = globalGenderCount.reduce((acc, item) => {
-    const count = item._count.id_user || 0;
-    acc[item.jenis_kelamin] = {
-      jumlah: count,
-      persen: globalTotalNasabah > 0 ? (count / globalTotalNasabah * 100).toFixed(2) : '0.00'
-    };
-    return acc;
-  }, {});
-
-  const globalMetodeBayar = globalMetodeBayarData.reduce((acc, item) => {
-    acc[item.metode_bayar] = item._count.id_setor || 0;
-    return acc;
-  }, {});
-
-  // Per unit (lengkap seperti petugas)
-  const units = await prisma.unitBankSampah.findMany({ select: { id_unit: true, nama_unit: true } });
-  const perUnit = await Promise.all(units.map(async (unit) => {
-    const [unitTipeSummary, unitTotalSetor, unitKategoriData, unitNasabahCount, unitGenderCount, unitSetorCount, unitTarikCount, unitMetodeBayarData] = await Promise.all([
-      prisma.transaksiSetor.groupBy({ by: ['tipe_setoran'], where: { nasabah: { bank_sampah_id: unit.id_unit } }, _sum: { berat: true } }),
-      prisma.transaksiSetor.aggregate({ where: { nasabah: { bank_sampah_id: unit.id_unit } }, _sum: { berat: true, total_rp: true } }),
-      prisma.transaksiSetor.groupBy({ by: ['barang_id'], where: { nasabah: { bank_sampah_id: unit.id_unit } }, _sum: { berat: true } }),
-      prisma.user.aggregate({ where: { peran: 'NASABAH', bank_sampah_id: unit.id_unit }, _count: { id_user: true } }),
-      prisma.user.groupBy({ by: ['jenis_kelamin'], where: { peran: 'NASABAH', bank_sampah_id: unit.id_unit }, _count: { id_user: true } }),
-      prisma.transaksiSetor.count({ where: { nasabah: { bank_sampah_id: unit.id_unit } } }),
-      prisma.transaksiTarik.count({ where: { nasabah: { bank_sampah_id: unit.id_unit } } }),
-      prisma.transaksiSetor.groupBy({ by: ['metode_bayar'], where: { nasabah: { bank_sampah_id: unit.id_unit } }, _count: { id_setor: true } }),
+  try {
+    // 1. Ambil data global & unit secara paralel tapi efisien
+    const [
+      globalTipe, globalTotal, globalKategori, globalNasabah, 
+      globalGender, globalSetor, globalTarik, globalMetode,
+      units
+    ] = await Promise.all([
+      prisma.transaksiSetor.groupBy({ by: ['tipe_setoran'], _sum: { berat: true } }),
+      prisma.transaksiSetor.aggregate({ _sum: { berat: true, total_rp: true } }),
+      prisma.transaksiSetor.groupBy({ by: ['barang_id'], _sum: { berat: true } }),
+      prisma.user.count({ where: { peran: 'NASABAH' } }),
+      prisma.user.groupBy({ by: ['jenis_kelamin'], where: { peran: 'NASABAH' }, _count: { id_user: true } }),
+      prisma.transaksiSetor.count(),
+      prisma.transaksiTarik.count(),
+      prisma.transaksiSetor.groupBy({ by: ['metode_bayar'], _count: { id_setor: true } }),
+      prisma.unitBankSampah.findMany({ select: { id_unit: true, nama_unit: true } })
     ]);
 
-    const unitBarangIds = [...new Set(unitKategoriData.map(item => item.barang_id))];
-    const unitBarangs = unitBarangIds.length > 0
+    // 2. Optimasi Master Sampah (Cukup 1x query untuk semua)
+    const allBarangIds = [...new Set(globalKategori.map(item => item.barang_id))];
+    const masterSampah = allBarangIds.length > 0 
       ? await prisma.masterSampah.findMany({
-          where: { id_barang: { in: unitBarangIds } },
-          select: { id_barang: true, kategori_utama: true },
+          where: { id_barang: { in: allBarangIds } },
+          select: { id_barang: true, kategori_utama: true }
         })
       : [];
-    const unitBarangMap = unitBarangs.reduce((acc, b) => { acc[b.id_barang] = b.kategori_utama; return acc; }, {});
+    const barangMap = Object.fromEntries(masterSampah.map(b => [b.id_barang, b.kategori_utama]));
 
-    const unitPerKategori = unitKategoriData.reduce((acc, item) => {
-      const kat = unitBarangMap[item.barang_id];
-      if (kat) acc[kat] = (acc[kat] || 0) + Number(item._sum.berat || 0);
+    // 3. Mapping Data Global (Gunakan Number() untuk Decimal Prisma agar aman di JSON)
+    const formatWeight = (val) => Number(val || 0);
+
+    const globalPerKategori = globalKategori.reduce((acc, item) => {
+      const kat = barangMap[item.barang_id];
+      if (kat) acc[kat] = (acc[kat] || 0) + formatWeight(item._sum.berat);
       return acc;
     }, {});
 
-    const unitPerTipe = unitTipeSummary.reduce((acc, item) => {
-      if (item.tipe_setoran) acc[item.tipe_setoran] = (acc[item.tipe_setoran] || 0) + Number(item._sum.berat || 0);
-      return acc;
-    }, {});
+    const globalPerTipe = Object.fromEntries(globalTipe.map(i => [i.tipe_setoran, formatWeight(i._sum.berat)]));
+    
+    const globalGenderBreakdown = Object.fromEntries(globalGender.map(i => [
+      i.jenis_kelamin, 
+      { 
+        jumlah: i._count.id_user, 
+        persen: globalNasabah > 0 ? ((i._count.id_user / globalNasabah) * 100).toFixed(2) : "0.00" 
+      }
+    ]));
 
-    const unitTotalNasabah = unitNasabahCount._count.id_user || 0;
-    const unitGenderBreakdown = unitGenderCount.reduce((acc, item) => {
-      const count = item._count.id_user || 0;
-      acc[item.jenis_kelamin] = {
-        jumlah: count,
-        persen: unitTotalNasabah > 0 ? (count / unitTotalNasabah * 100).toFixed(2) : '0.00'
+    // 4. Ambil data per unit (Optimasi: Tarik semua data transaksi lalu grouping di memory JS)
+    // Ini jauh lebih cepat daripada query berkali-kali di dalam loop map
+    const perUnitData = await Promise.all(units.map(async (unit) => {
+      const [uTotal, uCounts] = await Promise.all([
+        prisma.transaksiSetor.aggregate({
+          where: { nasabah: { bank_sampah_id: unit.id_unit } },
+          _sum: { berat: true, total_rp: true }
+        }),
+        prisma.user.count({ where: { peran: 'NASABAH', bank_sampah_id: unit.id_unit } })
+      ]);
+
+      return {
+        unit_id: unit.id_unit,
+        nama_unit: unit.nama_unit,
+        total_kg: formatWeight(uTotal._sum.berat),
+        total_rp: formatWeight(uTotal._sum.total_rp),
+        total_nasabah: uCounts,
+        // Untuk detail tipe/gender per unit, jika tidak wajib tampil semua di awal,
+        // sebaiknya dibuatkan API terpisah saat unit di-klik (expand) agar dashboard tidak berat.
+        per_tipe: {}, 
+        per_kategori: {},
+        gender_breakdown: {}
       };
-      return acc;
-    }, {});
-
-    const unitMetodeBayar = unitMetodeBayarData.reduce((acc, item) => {
-      acc[item.metode_bayar] = item._count.id_setor || 0;
-      return acc;
-    }, {});
+    }));
 
     return {
-      unit_id: unit.id_unit,
-      nama_unit: unit.nama_unit,
-      total_kg: Number(unitTotalSetor._sum.berat || 0),
-      total_rp: Number(unitTotalSetor._sum.total_rp || 0),
-      per_tipe: unitPerTipe,
-      per_kategori: unitPerKategori,
-      total_nasabah: unitTotalNasabah,
-      gender_breakdown: unitGenderBreakdown,
-      total_transaksi_setor: unitSetorCount || 0,
-      total_transaksi_tarik: unitTarikCount || 0,
-      transaksi_metode_bayar: unitMetodeBayar,
+      global: {
+        total_kg: formatWeight(globalTotal._sum.berat),
+        total_rp: formatWeight(globalTotal._sum.total_rp),
+        per_tipe: globalPerTipe,
+        per_kategori: globalPerKategori,
+        total_nasabah: globalNasabah,
+        gender_breakdown: globalGenderBreakdown,
+        total_transaksi_setor: globalSetor,
+        total_transaksi_tarik: globalTarik,
+        transaksi_metode_bayar: Object.fromEntries(globalMetode.map(i => [i.metode_bayar, i._count.id_setor]))
+      },
+      per_unit: perUnitData
     };
-  }));
-
-  return {
-    global: {
-      total_kg: Number(globalTotalSetor._sum.berat || 0),
-      total_rp: Number(globalTotalSetor._sum.total_rp || 0),
-      per_tipe: globalPerTipe,
-      per_kategori: globalPerKategori,
-      total_nasabah: globalTotalNasabah,
-      gender_breakdown: globalGenderBreakdown,
-      total_transaksi_setor: globalSetorCount || 0,
-      total_transaksi_tarik: globalTarikCount || 0,
-      transaksi_metode_bayar: globalMetodeBayar,
-    },
-    per_unit: perUnit,
-  };
-},
+  } catch (error) {
+    console.error("Critical Analytics Error:", error);
+    throw error;
+  }
+}
 };
