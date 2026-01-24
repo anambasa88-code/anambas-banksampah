@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 
 export const analyticsService = {
  
+// src/services/analyticsService.js - getNasabahSummary Fixed
 async getNasabahSummary(nasabahId, startDate = null, endDate = null) {
   const whereSetor = { nasabah_id: nasabahId };
   const whereTarik = { nasabah_id: nasabahId };
@@ -15,23 +16,38 @@ async getNasabahSummary(nasabahId, startDate = null, endDate = null) {
     whereTarik.waktu = waktuFilter;
   }
 
-  const [tipeSummary, totalSetor, kategoriData, setorCount, tarikCount] = await Promise.all([
+  const [tipeSummary, totalSetor, totalTabung, kategoriData, setorCount, tarikCount, metodeBayarData] = await Promise.all([
+    // Per tipe setoran (semua)
     prisma.transaksiSetor.groupBy({
       by: ['tipe_setoran'],
       where: whereSetor,
       _sum: { berat: true },
     }),
+    // Total setor (semua - untuk total kg)
     prisma.transaksiSetor.aggregate({
       where: whereSetor,
       _sum: { berat: true, total_rp: true },
     }),
+    // Total TABUNG aja (untuk saldo)
+    prisma.transaksiSetor.aggregate({
+      where: { ...whereSetor, metode_bayar: 'TABUNG' },
+      _sum: { total_rp: true },
+    }),
+    // Per barang untuk kategori
     prisma.transaksiSetor.groupBy({
       by: ['barang_id'],
       where: whereSetor,
       _sum: { berat: true },
     }),
+    // Count transaksi
     prisma.transaksiSetor.count({ where: whereSetor }),
     prisma.transaksiTarik.count({ where: whereTarik }),
+    // Breakdown metode bayar
+    prisma.transaksiSetor.groupBy({
+      by: ['metode_bayar'],
+      where: whereSetor,
+      _count: { id_setor: true },
+    }),
   ]);
 
   const barangIds = [...new Set(kategoriData.map(item => item.barang_id))];
@@ -58,13 +74,19 @@ async getNasabahSummary(nasabahId, startDate = null, endDate = null) {
     return acc;
   }, {});
 
+  const metodeBayar = metodeBayarData.reduce((acc, item) => {
+    acc[item.metode_bayar] = item._count.id_setor || 0;
+    return acc;
+  }, {});
+
   return {
     total_kg: Number(totalSetor._sum.berat || 0),
-    total_rp: Number(totalSetor._sum.total_rp || 0),
+    total_rp: Number(totalTabung._sum.total_rp || 0), // PERBAIKAN: Hanya TABUNG
     per_tipe: perTipe,
     per_kategori: perKategori,
     total_transaksi_setor: setorCount,
     total_transaksi_tarik: tarikCount,
+    transaksi_metode_bayar: metodeBayar, // TAMBAHAN: Breakdown metode
     periode: startDate || endDate ? { start: startDate, end: endDate } : null,
   };
 },

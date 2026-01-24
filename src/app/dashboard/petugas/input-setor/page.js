@@ -6,13 +6,12 @@ import DashboardLayout from "@/components/DashboardLayout";
 import {
   Search,
   Package,
-  Camera,
   Save,
-  X,
   Users,
   Trash2,
   DollarSign,
-  Scale
+  Scale,
+  AlertCircle
 } from "lucide-react";
 
 export default function InputSetorPage() {
@@ -34,6 +33,8 @@ export default function InputSetorPage() {
     nasabah_name: "",
     barang_id: null,
     berat: "",
+    tipe_harga: "SISTEM", // SISTEM, LOKAL, CUSTOM
+    harga_manual: "",
     tipe_setoran: "COMMUNITY",
     metode_bayar: "TABUNG",
     catatan: ""
@@ -54,42 +55,41 @@ export default function InputSetorPage() {
       );
       setFilteredNasabah(filtered);
     } else {
-      setFilteredNasabah(nasabahList.slice(0, 10)); // Show first 10
+      setFilteredNasabah(nasabahList.slice(0, 10));
     }
   }, [searchNasabah, nasabahList]);
 
-const fetchMasterData = async () => {
-  try {
-    setLoadingData(true);
-    const token = localStorage.getItem("bs_token");
+  const fetchMasterData = async () => {
+    try {
+      setLoadingData(true);
+      const token = localStorage.getItem("bs_token");
 
-    const [nasabahRes, barangRes] = await Promise.all([
-      fetch("/api/users/petugas/daftar-nasabah?limit=100", {
-        headers: { Authorization: `Bearer ${token}` }
-      }),
-      fetch("/api/users/petugas/master-sampah", {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-    ]);
+      const [nasabahRes, barangRes] = await Promise.all([
+        fetch("/api/users/petugas/daftar-nasabah?limit=100", {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch("/api/users/petugas/master-sampah", {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
 
-    const nasabahData = await nasabahRes.json();
-    const barangData = await barangRes.json();
+      const nasabahData = await nasabahRes.json();
+      const barangData = await barangRes.json();
 
-    // Perbaikan di sini: Tambahkan pengecekan nested .data
-    const listNasabah = nasabahData.data?.data || nasabahData.data || [];
-    const listBarang = barangData.data?.data || barangData.data || [];
+      const listNasabah = nasabahData.data?.data || nasabahData.data || [];
+      const listBarang = barangData.data?.data || barangData.data || [];
 
-    setNasabahList(listNasabah);
-    setBarangList(listBarang);
-    setFilteredNasabah(listNasabah.slice(0, 10));
-    
-  } catch (err) {
-    console.error(err);
-    toast.error("Gagal memuat data master");
-  } finally {
-    setLoadingData(false);
-  }
-};
+      setNasabahList(listNasabah);
+      setBarangList(listBarang);
+      setFilteredNasabah(listNasabah.slice(0, 10));
+      
+    } catch (err) {
+      console.error(err);
+      toast.error("Gagal memuat data master");
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
   const handleSelectNasabah = (nasabah) => {
     setFormData(prev => ({
@@ -105,15 +105,52 @@ const fetchMasterData = async () => {
     const barangId = parseInt(e.target.value);
     const barang = barangList.find(b => b.id_barang === barangId);
     
-    setFormData(prev => ({ ...prev, barang_id: barangId }));
+    setFormData(prev => ({ 
+      ...prev, 
+      barang_id: barangId,
+      harga_manual: "" // Reset harga manual saat ganti barang
+    }));
     setSelectedBarang(barang);
+  };
+
+  const getHargaToUse = () => {
+    if (!selectedBarang) return 0;
+    
+    if (formData.tipe_harga === "SISTEM") {
+      return Number(selectedBarang.harga_aktif);
+    } else if (formData.tipe_harga === "LOKAL") {
+      return Number(selectedBarang.harga_lokal || selectedBarang.harga_aktif);
+    } else if (formData.tipe_harga === "CUSTOM") {
+      return Number(formData.harga_manual) || 0;
+    }
+    return 0;
   };
 
   const calculateTotal = () => {
     if (!formData.berat || !selectedBarang) return 0;
     const berat = parseFloat(formData.berat);
-    const harga = selectedBarang.harga_aktif || 0;
+    const harga = getHargaToUse();
     return berat * harga;
+  };
+
+  const isHargaCustomValid = () => {
+    if (!selectedBarang || formData.tipe_harga !== "CUSTOM") return true;
+    if (!formData.harga_manual) return false;
+    
+    const hargaCustom = Number(formData.harga_manual);
+    const hargaMin = Number(selectedBarang.batas_bawah);
+    const hargaMax = Number(selectedBarang.batas_atas);
+    
+    return hargaCustom >= hargaMin && hargaCustom <= hargaMax;
+  };
+
+  const getHargaBatas = () => {
+    if (!selectedBarang) return { min: 0, max: 0 };
+    
+    return {
+      min: Number(selectedBarang.batas_bawah) || 0,
+      max: Number(selectedBarang.batas_atas) || 0
+    };
   };
 
   const handleSubmit = async (e) => {
@@ -132,6 +169,10 @@ const fetchMasterData = async () => {
       toast.error("Masukkan berat sampah yang valid");
       return;
     }
+    if (formData.tipe_harga === "CUSTOM" && !isHargaCustomValid()) {
+      toast.error("Harga custom harus berada dalam batas minimal dan maksimal");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -140,12 +181,15 @@ const fetchMasterData = async () => {
       const payload = {
         nasabah_id: formData.nasabah_id,
         barang_id: formData.barang_id,
-        harga_deal: selectedBarang.harga_aktif,
         berat: parseFloat(formData.berat),
+        tipe_harga: formData.tipe_harga,
+        harga_manual: formData.tipe_harga === "CUSTOM" ? Number(formData.harga_manual) : 0,
         tipe_setoran: formData.tipe_setoran,
         metode_bayar: formData.metode_bayar,
-        catatan: formData.catatan || ""
-      };
+        catatan_petugas: formData.catatan || ""
+      };  
+
+       console.log('📤 Payload yang dikirim:', payload); // ← TAMBAH INI
 
       const res = await fetch("/api/transaksi/setor", {
         method: "POST",
@@ -170,6 +214,8 @@ const fetchMasterData = async () => {
         nasabah_name: "",
         barang_id: null,
         berat: "",
+        tipe_harga: "SISTEM",
+        harga_manual: "",
         tipe_setoran: "COMMUNITY",
         metode_bayar: "TABUNG",
         catatan: ""
@@ -292,6 +338,93 @@ const fetchMasterData = async () => {
               </select>
             </div>
 
+            {/* Tipe Harga */}
+            {selectedBarang && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <DollarSign className="w-4 h-4 inline mr-2" />
+                  Tipe Harga
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, tipe_harga: "SISTEM", harga_manual: "" }))}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      formData.tipe_harga === "SISTEM"
+                        ? "border-green-600 bg-green-50 dark:bg-green-900/30"
+                        : "border-gray-300 dark:border-slate-600 hover:border-green-400"
+                    }`}
+                  >
+                    <p className="font-semibold text-gray-800 dark:text-white">Harga Sistem</p>
+                    <p className="text-lg font-bold text-green-600 dark:text-green-400 mt-1">
+                      {formatRupiah(selectedBarang.harga_aktif)}
+                    </p>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, tipe_harga: "LOKAL", harga_manual: "" }))}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      formData.tipe_harga === "LOKAL"
+                        ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                        : "border-gray-300 dark:border-slate-600 hover:border-blue-400"
+                    }`}
+                  >
+                    <p className="font-semibold text-gray-800 dark:text-white">Harga Lokal</p>
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-1">
+                      {formatRupiah(selectedBarang.harga_lokal || selectedBarang.harga_aktif)}
+                    </p>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, tipe_harga: "CUSTOM" }))}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      formData.tipe_harga === "CUSTOM"
+                        ? "border-orange-600 bg-orange-50 dark:bg-orange-900/30"
+                        : "border-gray-300 dark:border-slate-600 hover:border-orange-400"
+                    }`}
+                  >
+                    <p className="font-semibold text-gray-800 dark:text-white">Harga Custom</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Input manual
+                    </p>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Input Harga Custom */}
+            {formData.tipe_harga === "CUSTOM" && selectedBarang && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Input Harga Custom (per kg)
+                </label>
+                <input
+                  type="number"
+                  step="1"
+                  min={getHargaBatas().min}
+                  max={getHargaBatas().max}
+                  placeholder="Masukkan harga..."
+                  value={formData.harga_manual}
+                  onChange={(e) => setFormData(prev => ({ ...prev, harga_manual: e.target.value }))}
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-white ${
+                    !isHargaCustomValid() 
+                      ? "border-red-500 focus:ring-red-500" 
+                      : "border-gray-300 dark:border-slate-600 focus:ring-orange-500"
+                  }`}
+                />
+                <div className="mt-2 flex items-start gap-2 text-sm">
+                  <AlertCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                    !isHargaCustomValid() ? "text-red-500" : "text-gray-500 dark:text-gray-400"
+                  }`} />
+                  <p className={!isHargaCustomValid() ? "text-red-500" : "text-gray-500 dark:text-gray-400"}>
+                    Batas harga: {formatRupiah(getHargaBatas().min)} - {formatRupiah(getHargaBatas().max)}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Berat */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -402,7 +535,10 @@ const fetchMasterData = async () => {
                   </p>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {formData.berat} kg × {formatRupiah(selectedBarang.harga_aktif)}/kg
+                  {formData.berat} kg × {formatRupiah(getHargaToUse())}/kg
+                  {formData.tipe_harga === "CUSTOM" && !isHargaCustomValid() && (
+                    <span className="text-red-500 ml-2">⚠️ Harga diluar batas!</span>
+                  )}
                 </p>
               </div>
             )}
@@ -411,7 +547,7 @@ const fetchMasterData = async () => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (formData.tipe_harga === "CUSTOM" && !isHargaCustomValid())}
             className="w-full py-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Save className="w-5 h-5" />

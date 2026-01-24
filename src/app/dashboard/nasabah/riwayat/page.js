@@ -12,7 +12,9 @@ import {
   DollarSign,
   RefreshCw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Wallet,
+  Banknote
 } from "lucide-react";
 
 export default function RiwayatNasabah() {
@@ -94,9 +96,12 @@ export default function RiwayatNasabah() {
 
   const totalSetor = data.filter((d) => d.jenis === "SETOR").length;
   const totalTarik = data.filter((d) => d.jenis === "TARIK").length;
+  
+  // PERBAIKAN: Hitung hanya yang TABUNG (masuk saldo)
   const totalNilaiSetor = data
-    .filter((d) => d.jenis === "SETOR")
+    .filter((d) => d.jenis === "SETOR" && d.metode_bayar === "TABUNG")
     .reduce((sum, d) => sum + (Number(d.total_rp) || 0), 0);
+  
   const totalNilaiTarik = data
     .filter((d) => d.jenis === "TARIK")
     .reduce((sum, d) => sum + (Number(d.jumlah) || 0), 0);
@@ -141,10 +146,11 @@ export default function RiwayatNasabah() {
           </div>
 
           <div className="p-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Nilai Setor</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Masuk Saldo</p>
             <p className="text-sm font-bold text-green-600 dark:text-green-400">
               {formatRupiah(totalNilaiSetor)}
             </p>
+            <p className="text-xs text-gray-400 mt-0.5">via Tabung</p>
           </div>
 
           <div className="p-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
@@ -245,7 +251,7 @@ export default function RiwayatNasabah() {
                             <p className="text-sm font-semibold text-gray-800 dark:text-white">
                               {item.barang?.nama || "-"}
                             </p>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <span className="text-xs text-gray-500 dark:text-gray-400">
                                 {item.berat || 0} kg × {formatRupiah(item.harga_per_kg || 0)}/kg
                               </span>
@@ -257,6 +263,26 @@ export default function RiwayatNasabah() {
                                     : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"}
                                 `}>
                                   {item.barang.tipe}
+                                </span>
+                              )}
+                              {item.metode_bayar && (
+                                <span className={`
+                                  text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1
+                                  ${item.metode_bayar === "TABUNG" 
+                                    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" 
+                                    : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400"}
+                                `}>
+                                  {item.metode_bayar === "TABUNG" ? (
+                                    <>
+                                      <Wallet className="w-3 h-3" />
+                                      TABUNG
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Banknote className="w-3 h-3" />
+                                      JUAL LANGSUNG
+                                    </>
+                                  )}
                                 </span>
                               )}
                             </div>
