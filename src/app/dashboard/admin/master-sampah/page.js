@@ -11,9 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit,
-  Power,
-  AlertCircle,
-  RefreshCw,
+  // Power & AlertCircle dihapus karena aksi non-aktifkan dihilangkan
 } from "lucide-react";
 
 const CATEGORIES = [
@@ -32,9 +30,9 @@ export default function MasterSampahPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editData, setEditData] = useState(null);
-  const [showConfirm, setShowConfirm] = useState(null);
+  // showConfirm dihapus karena modal konfirmasi tidak diperlukan lagi
 
-  const itemsPerPage = 20; // Diubah jadi 20 per halaman
+  const itemsPerPage = 20;
 
   const fetchData = async () => {
     try {
@@ -74,7 +72,6 @@ export default function MasterSampahPage() {
     fetchData();
   }, []);
 
-  // Filter data berdasarkan kategori aktif dan search
   const filteredData = allData
     .filter((item) => item.kategori_utama === activeTab)
     .filter(
@@ -83,7 +80,6 @@ export default function MasterSampahPage() {
         item.keterangan_pusat.toLowerCase().includes(searchTerm.toLowerCase()),
     );
 
-  // Pagination
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedData = filteredData.slice(
@@ -91,11 +87,11 @@ export default function MasterSampahPage() {
     startIndex + itemsPerPage,
   );
 
-  // Reset page saat ganti tab atau search
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, searchTerm]);
 
+  // Logic tetap ada agar tidak error, tapi tidak dipanggil di UI
   const handleToggleActive = async (item) => {
     try {
       const token = localStorage.getItem("bs_token");
@@ -110,17 +106,10 @@ export default function MasterSampahPage() {
           body: JSON.stringify({ is_active: !item.is_active }),
         },
       );
-
       if (!res.ok) throw new Error("Gagal mengubah status");
-
-      toast.success(
-        `${item.nama_barang} berhasil ${!item.is_active ? "diaktifkan" : "dinonaktifkan"}`,
-      );
       fetchData();
     } catch (err) {
       toast.error(err.message || "Gagal mengubah status");
-    } finally {
-      setShowConfirm(null);
     }
   };
 
@@ -191,7 +180,7 @@ export default function MasterSampahPage() {
               onClick={() => setActiveTab(cat.value)}
               className={`px-4 py-2 rounded-t-lg font-medium transition-all border-b-4 ${
                 activeTab === cat.value
-                  ? "border-green-600 bg-green-600 text-white" // active: hijau tegas
+                  ? "border-green-600 bg-green-600 text-white"
                   : "border-transparent bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700"
               }`}
             >
@@ -220,11 +209,6 @@ export default function MasterSampahPage() {
               <p className="text-gray-600 dark:text-gray-400 font-medium">
                 Tidak ada data ditemukan
               </p>
-              {searchTerm && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Coba ubah kata kunci pencarian
-                </p>
-              )}
             </div>
           ) : (
             <>
@@ -232,7 +216,6 @@ export default function MasterSampahPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-slate-800">
-                      {/* Kolom No - paling kiri */}
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider w-16">
                         No
                       </th>
@@ -265,7 +248,6 @@ export default function MasterSampahPage() {
                         key={item.id_barang}
                         className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
                       >
-                        {/* Kolom No - hitung dari page saat ini */}
                         <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                           {(currentPage - 1) * itemsPerPage + index + 1}
                         </td>
@@ -295,7 +277,7 @@ export default function MasterSampahPage() {
                             {item.is_active ? "Aktif" : "Non-Aktif"}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                        <td className="px-6 py-4 text-right">
                           <button
                             onClick={() => handleEdit(item)}
                             className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 transition-all"
@@ -303,17 +285,7 @@ export default function MasterSampahPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => setShowConfirm(item)}
-                            className={`p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-all ${
-                              item.is_active
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-green-600 dark:text-green-400"
-                            }`}
-                            title={item.is_active ? "Nonaktifkan" : "Aktifkan"}
-                          >
-                            <Power className="w-4 h-4" />
-                          </button>
+                          {/* Tombol Power/Nonaktifkan sudah dihapus dari sini */}
                         </td>
                       </tr>
                     ))}
@@ -366,61 +338,7 @@ export default function MasterSampahPage() {
         />
       )}
 
-      {/* Konfirmasi Toggle */}
-      {showConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div
-                className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                  showConfirm.is_active
-                    ? "bg-red-100 dark:bg-red-900/30"
-                    : "bg-green-100 dark:bg-green-900/30"
-                }`}
-              >
-                <AlertCircle
-                  className={`w-6 h-6 ${
-                    showConfirm.is_active
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-green-600 dark:text-green-400"
-                  }`}
-                />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white">
-                  Konfirmasi{" "}
-                  {showConfirm.is_active ? "Nonaktifkan" : "Aktifkan"}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Apakah Anda yakin?
-                </p>
-              </div>
-            </div>
-            <p className="text-gray-700 dark:text-gray-300">
-              {showConfirm.is_active ? "Menonaktifkan" : "Mengaktifkan"}{" "}
-              <span className="font-semibold">{showConfirm.nama_barang}</span>
-            </p>
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setShowConfirm(null)}
-                className="flex-1 px-4 py-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
-              >
-                Batal
-              </button>
-              <button
-                onClick={() => handleToggleActive(showConfirm)}
-                className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition-all ${
-                  showConfirm.is_active
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-green-600 hover:bg-green-700"
-                }`}
-              >
-                Ya, {showConfirm.is_active ? "Nonaktifkan" : "Aktifkan"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal Konfirmasi Nonaktifkan sudah dihapus sepenuhnya */}
     </DashboardLayout>
   );
 }
