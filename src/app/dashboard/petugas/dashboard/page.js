@@ -16,7 +16,7 @@ import {
   ArrowDownRight,
   RefreshCw,
   UserCheck,
-  CircleDollarSign
+  CircleDollarSign,
 } from "lucide-react";
 
 export default function PetugasDashboard() {
@@ -30,7 +30,9 @@ export default function PetugasDashboard() {
     gender_breakdown: {},
     total_transaksi_setor: 0,
     total_transaksi_tarik: 0,
-    transaksi_metode_bayar: {}
+    transaksi_metode_bayar: {},
+    total_penarikan_rp: 0,
+    saldo_aktif: 0,
   });
 
   const fetchDashboard = async () => {
@@ -87,7 +89,10 @@ export default function PetugasDashboard() {
             <div className="h-8 w-64 rounded-lg bg-gray-200 dark:bg-slate-800" />
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <div key={i} className="h-32 rounded-2xl bg-gray-100 dark:bg-slate-800" />
+                <div
+                  key={i}
+                  className="h-32 rounded-2xl bg-gray-100 dark:bg-slate-800"
+                />
               ))}
             </div>
           </div>
@@ -96,7 +101,17 @@ export default function PetugasDashboard() {
     );
   }
 
-  const { total_kg, total_rp, per_tipe, per_kategori, total_nasabah, gender_breakdown, total_transaksi_setor, total_transaksi_tarik, transaksi_metode_bayar } = data;
+  const {
+    total_kg,
+    total_rp,
+    per_tipe,
+    per_kategori,
+    total_nasabah,
+    gender_breakdown,
+    total_transaksi_setor,
+    total_transaksi_tarik,
+    transaksi_metode_bayar,
+  } = data;
 
   const topKategori = Object.entries(per_kategori || {})
     .sort(([, a], [, b]) => b - a)
@@ -105,7 +120,6 @@ export default function PetugasDashboard() {
   return (
     <DashboardLayout>
       <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6 md:space-y-8">
-        
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="space-y-2">
@@ -127,18 +141,48 @@ export default function PetugasDashboard() {
         </div>
 
         {/* Main Stats - 4 Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
-          
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {/* Total Nasabah */}
           <div className="p-6 rounded-2xl border border-gray-200 shadow-sm bg-white dark:bg-slate-900 dark:border-slate-700">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
                 <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
-              <UserCheck className="w-5 h-5 text-blue-500" />
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Nasabah</p>
-            <p className="text-3xl font-bold text-gray-800 dark:text-white">{total_nasabah}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+              Total Nasabah
+            </p>
+            <p className="text-3xl font-bold text-gray-800 dark:text-white">
+              {total_nasabah}
+            </p>
+
+            {/* Gender Breakdown */}
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700 space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                  <UsersRound className="w-4 h-4" />
+                  Laki-laki
+                </span>
+                <span className="font-semibold text-gray-800 dark:text-white">
+                  {gender_breakdown?.LAKI_LAKI?.jumlah || 0}{" "}
+                  <span className="text-xs text-gray-500">
+                    ({gender_breakdown?.LAKI_LAKI?.persen || "0.00"}%)
+                  </span>
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                  <UsersRound className="w-4 h-4" />
+                  Perempuan
+                </span>
+                <span className="font-semibold text-gray-800 dark:text-white">
+                  {gender_breakdown?.PEREMPUAN?.jumlah || 0}{" "}
+                  <span className="text-xs text-gray-500">
+                    ({gender_breakdown?.PEREMPUAN?.persen || "0.00"}%)
+                  </span>
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Total Setoran (kg) */}
@@ -147,124 +191,189 @@ export default function PetugasDashboard() {
               <div className="w-12 h-12 rounded-xl bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
                 <Package className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{total_transaksi_setor} transaksi</p>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Setoran</p>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{total_kg.toFixed(2)} kg</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+              Total Setoran
+            </p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+              {total_kg.toFixed(2)} kg
+            </p>
+
+            {/* Kategori Breakdown */}
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700 space-y-2">
+              {[
+                { name: "PLASTIK", icon: Package },
+                { name: "LOGAM", icon: Waves },
+                { name: "KERTAS", icon: Trash2 },
+                { name: "LAINNYA", icon: DollarSign },
+                { name: "CAMPURAN", icon: RefreshCw },
+              ].map(({ name, icon: Icon }) => {
+                const berat = per_kategori?.[name] || 0;
+                return (
+                  <div
+                    key={name}
+                    className="flex justify-between items-center text-xs"
+                  >
+                    <span className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                      <Icon className="w-3 h-3" />
+                      {name.charAt(0) + name.slice(1).toLowerCase()}
+                    </span>
+                    <span className="font-semibold text-gray-800 dark:text-white">
+                      {berat.toFixed(1)} kg
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Total Nilai (Rp) */}
-          <div className="relative overflow-hidden p-6 rounded-2xl border border-green-200 shadow-lg bg-gradient-to-br from-green-500 to-green-600 text-white">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                  <Wallet className="w-6 h-6" />
-                </div>
-                <TrendingUp className="w-5 h-5 opacity-70" />
-              </div>
-              <p className="text-sm opacity-90 mb-1">Total Nilai</p>
-              <p className="text-2xl font-bold">{formatRupiah(total_rp)}</p>
-            </div>
-          </div>
-
-          {/* Total Penarikan */}
+          {/* Total Transaksi */}
           <div className="p-6 rounded-2xl border border-gray-200 shadow-sm bg-white dark:bg-slate-900 dark:border-slate-700">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+              <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
-              <ArrowDownRight className="w-5 h-5 text-orange-500" />
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Penarikan</p>
-            <p className="text-2xl font-bold text-gray-800 dark:text-white">{total_transaksi_tarik}</p>
-          </div>
-        </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+              Total Transaksi
+            </p>
+            <p className="text-3xl font-bold text-gray-800 dark:text-white">
+              {total_transaksi_setor + total_transaksi_tarik}
+            </p>
 
-        {/* Gender & Metode Bayar - 2 Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          
-          {/* Gender Breakdown */}
-          <div className="p-6 rounded-2xl border border-gray-200 shadow-sm bg-white dark:bg-slate-900 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-              Breakdown Nasabah
-            </h2>
-            <div className="space-y-3">
-              {Object.entries(gender_breakdown || {}).map(([gender, info]) => (
-                <div key={gender} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      gender === "LAKI_LAKI" 
-                        ? "bg-blue-50 dark:bg-blue-900/30" 
-                        : "bg-pink-50 dark:bg-pink-900/30"
-                    }`}>
-                      <Users className={`w-5 h-5 ${
-                        gender === "LAKI_LAKI" 
-                          ? "text-blue-600 dark:text-blue-400" 
-                          : "text-pink-600 dark:text-pink-400"
-                      }`} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800 dark:text-white">
-                        {gender === "LAKI_LAKI" ? "Laki-laki" : "Perempuan"}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {info.jumlah} nasabah
-                      </p>
-                    </div>
+            {/* Breakdown Transaksi */}
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700 space-y-3">
+              {/* Setoran */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+                    <Package className="w-3 h-3" />
+                    Setoran
+                  </span>
+                  <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                    {total_transaksi_setor}
+                  </span>
+                </div>
+                <div className="pl-3 space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                      <Wallet className="w-3 h-3" />
+                      Tabung
+                    </span>
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      {transaksi_metode_bayar?.TABUNG || 0}
+                    </span>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-gray-800 dark:text-white">{info.persen}%</p>
+                  <div className="flex justify-between text-xs">
+                    <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                      <DollarSign className="w-3 h-3" />
+                      Jual Langsung
+                    </span>
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      {transaksi_metode_bayar?.JUAL_LANGSUNG || 0}
+                    </span>
                   </div>
                 </div>
-              ))}
-              {Object.keys(gender_breakdown || {}).length === 0 && (
-                <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-                  Belum ada data nasabah
-                </p>
-              )}
+              </div>
+
+              {/* Penarikan */}
+              <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+                    <TrendingUp className="w-3 h-3 rotate-180" />
+                    Penarikan
+                  </span>
+                  <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
+                    {total_transaksi_tarik}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Metode Bayar */}
+          {/* Perputaran Uang */}
           <div className="p-6 rounded-2xl border border-gray-200 shadow-sm bg-white dark:bg-slate-900 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-              Metode Pembayaran
-            </h2>
-            <div className="space-y-3">
-              {Object.entries(transaksi_metode_bayar || {}).map(([metode, jumlah]) => (
-                <div key={metode} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      metode === "TABUNG" 
-                        ? "bg-green-50 dark:bg-green-900/30" 
-                        : "bg-orange-50 dark:bg-orange-900/30"
-                    }`}>
-                      <CircleDollarSign className={`w-5 h-5 ${
-                        metode === "TABUNG" 
-                          ? "text-green-600 dark:text-green-400" 
-                          : "text-orange-600 dark:text-orange-400"
-                      }`} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800 dark:text-white">
-                        {metode === "TABUNG" ? "Tabung" : "Jual Langsung"}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Transaksi setoran
-                      </p>
-                    </div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
+                <CircleDollarSign className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+              Perputaran Uang
+            </p>
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              {formatRupiah(total_rp || 0)}
+            </p>
+
+            {/* Breakdown */}
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700 space-y-3">
+              {/* Metode Bayar */}
+              <div>
+                <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Breakdown Metode Bayar
+                </p>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                      <Wallet className="w-3 h-3" />
+                      Tabung
+                    </span>
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      {formatRupiah(
+                        data.perputaran_uang_per_metode?.TABUNG || 0,
+                      )}
+                    </span>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-gray-800 dark:text-white">{jumlah}</p>
+                  <div className="flex justify-between text-xs">
+                    <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                      <DollarSign className="w-3 h-3" />
+                      Jual Langsung
+                    </span>
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      {formatRupiah(
+                        data.perputaran_uang_per_metode?.JUAL_LANGSUNG || 0,
+                      )}
+                    </span>
                   </div>
                 </div>
-              ))}
-              {Object.keys(transaksi_metode_bayar || {}).length === 0 && (
-                <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-                  Belum ada data transaksi
+              </div>
+
+              {/* Saldo Tabungan */}
+              <div className="pt-3 border-t border-gray-100 dark:border-slate-800">
+                <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Saldo Tabungan Nasabah
                 </p>
-              )}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                      <ArrowUpRight className="w-3 h-3" />
+                      Uang Masuk
+                    </span>
+                    <span className="font-semibold text-green-600 dark:text-green-400">
+                      {formatRupiah(
+                        data.perputaran_uang_per_metode?.TABUNG || 0,
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                      <ArrowDownRight className="w-3 h-3" />
+                      Uang Keluar
+                    </span>
+                    <span className="font-semibold text-orange-600 dark:text-orange-400">
+                      {formatRupiah(data.total_penarikan_rp || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs pt-2 border-t border-gray-100 dark:border-slate-800">
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      Saldo Aktif
+                    </span>
+                    <span className="font-bold text-green-600 dark:text-green-400">
+                      {formatRupiah(data.saldo_aktif || 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -275,7 +384,6 @@ export default function PetugasDashboard() {
             Setoran Berdasarkan Tipe
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            
             {/* Community */}
             <div className="p-6 rounded-2xl border border-gray-200 shadow-sm bg-white dark:bg-slate-900 dark:border-slate-700 hover:border-green-300 dark:hover:border-green-700 transition-all">
               <div className="flex items-center gap-3 mb-4">
@@ -283,16 +391,25 @@ export default function PetugasDashboard() {
                   <UsersRound className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Community</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-500">Sampah dari komunitas</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Community
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                    Sampah dari komunitas
+                  </p>
                 </div>
               </div>
               <p className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white">
-                {(per_tipe?.COMMUNITY || 0).toFixed(2)} <span className="text-base md:text-lg text-gray-500">kg</span>
+                {(per_tipe?.COMMUNITY || 0).toFixed(2)}{" "}
+                <span className="text-base md:text-lg text-gray-500">kg</span>
               </p>
               <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {((per_tipe?.COMMUNITY || 0) / (total_kg || 1) * 100).toFixed(1)}% dari total
+                  {(
+                    ((per_tipe?.COMMUNITY || 0) / (total_kg || 1)) *
+                    100
+                  ).toFixed(1)}
+                  % dari total
                 </p>
               </div>
             </div>
@@ -304,69 +421,28 @@ export default function PetugasDashboard() {
                   <Waves className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Ocean Debris</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-500">Sampah dari laut</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Ocean Debris
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                    Sampah dari laut
+                  </p>
                 </div>
               </div>
               <p className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white">
-                {(per_tipe?.OCEAN_DEBRIS || 0).toFixed(2)} <span className="text-base md:text-lg text-gray-500">kg</span>
+                {(per_tipe?.OCEAN_DEBRIS || 0).toFixed(2)}{" "}
+                <span className="text-base md:text-lg text-gray-500">kg</span>
               </p>
               <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {((per_tipe?.OCEAN_DEBRIS || 0) / (total_kg || 1) * 100).toFixed(1)}% dari total
+                  {(
+                    ((per_tipe?.OCEAN_DEBRIS || 0) / (total_kg || 1)) *
+                    100
+                  ).toFixed(1)}
+                  % dari total
                 </p>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Top 3 Kategori */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-            Top 3 Kategori Sampah
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-            {topKategori.length === 0 ? (
-              <div className="col-span-3 p-8 text-center text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 dark:border-slate-700 rounded-2xl">
-                Belum ada data kategori sampah
-              </div>
-            ) : (
-              topKategori.map(([kategori, berat], index) => (
-                <div
-                  key={kategori}
-                  className="p-6 rounded-2xl border border-gray-200 shadow-sm bg-white dark:bg-slate-900 dark:border-slate-700 hover:shadow-md transition-all"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      index === 0 ? 'bg-yellow-50 dark:bg-yellow-900/30' : 
-                      index === 1 ? 'bg-gray-100 dark:bg-gray-800' : 
-                      'bg-orange-50 dark:bg-orange-900/30'
-                    }`}>
-                      <Trash2 className={`w-5 h-5 ${
-                        index === 0 ? 'text-yellow-600 dark:text-yellow-400' : 
-                        index === 1 ? 'text-gray-600 dark:text-gray-400' : 
-                        'text-orange-600 dark:text-orange-400'
-                      }`} />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">#{index + 1}</p>
-                      <p className="text-sm font-semibold text-gray-800 dark:text-white">{kategori}</p>
-                    </div>
-                  </div>
-                  <p className="text-xl md:text-2xl font-bold text-gray-800 dark:text-white">
-                    {berat.toFixed(2)} <span className="text-sm text-gray-500">kg</span>
-                  </p>
-                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-500 dark:text-gray-400">Kontribusi</span>
-                      <span className="font-semibold text-green-600 dark:text-green-400">
-                        {((berat / total_kg) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
           </div>
         </div>
       </div>

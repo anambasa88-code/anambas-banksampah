@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
+import ConfirmSetorModal from "@/components/ConfirmSetorModal";
 import {
   Search,
   Package,
@@ -11,22 +12,25 @@ import {
   Trash2,
   DollarSign,
   Scale,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
 
 export default function InputSetorPage() {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
-  
+
   // Master Data
   const [nasabahList, setNasabahList] = useState([]);
   const [barangList, setBarangList] = useState([]);
-  
+
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmData, setConfirmData] = useState(null);
+
   // Search States
   const [searchNasabah, setSearchNasabah] = useState("");
   const [filteredNasabah, setFilteredNasabah] = useState([]);
   const [showNasabahDropdown, setShowNasabahDropdown] = useState(false);
-  
+
   // Form Data
   const [formData, setFormData] = useState({
     nasabah_id: null,
@@ -37,9 +41,9 @@ export default function InputSetorPage() {
     harga_manual: "",
     tipe_setoran: "COMMUNITY",
     metode_bayar: "TABUNG",
-    catatan: ""
+    catatan: "",
   });
-  
+
   const [selectedBarang, setSelectedBarang] = useState(null);
 
   useEffect(() => {
@@ -48,10 +52,11 @@ export default function InputSetorPage() {
 
   useEffect(() => {
     if (searchNasabah) {
-      const filtered = nasabahList.filter(n => 
-        n.nama_lengkap.toLowerCase().includes(searchNasabah.toLowerCase()) ||
-        n.nickname.toLowerCase().includes(searchNasabah.toLowerCase()) ||
-        (n.nik && n.nik.includes(searchNasabah))
+      const filtered = nasabahList.filter(
+        (n) =>
+          n.nama_lengkap.toLowerCase().includes(searchNasabah.toLowerCase()) ||
+          n.nickname.toLowerCase().includes(searchNasabah.toLowerCase()) ||
+          (n.nik && n.nik.includes(searchNasabah)),
       );
       setFilteredNasabah(filtered);
     } else {
@@ -66,11 +71,11 @@ export default function InputSetorPage() {
 
       const [nasabahRes, barangRes] = await Promise.all([
         fetch("/api/users/petugas/daftar-nasabah?limit=100", {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }),
         fetch("/api/users/petugas/master-sampah", {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
 
       const nasabahData = await nasabahRes.json();
@@ -82,7 +87,6 @@ export default function InputSetorPage() {
       setNasabahList(listNasabah);
       setBarangList(listBarang);
       setFilteredNasabah(listNasabah.slice(0, 10));
-      
     } catch (err) {
       console.error(err);
       toast.error("Gagal memuat data master");
@@ -92,10 +96,10 @@ export default function InputSetorPage() {
   };
 
   const handleSelectNasabah = (nasabah) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       nasabah_id: nasabah.id_user,
-      nasabah_name: nasabah.nama_lengkap
+      nasabah_name: nasabah.nama_lengkap,
     }));
     setSearchNasabah(nasabah.nama_lengkap);
     setShowNasabahDropdown(false);
@@ -103,19 +107,19 @@ export default function InputSetorPage() {
 
   const handleSelectBarang = (e) => {
     const barangId = parseInt(e.target.value);
-    const barang = barangList.find(b => b.id_barang === barangId);
-    
-    setFormData(prev => ({ 
-      ...prev, 
+    const barang = barangList.find((b) => b.id_barang === barangId);
+
+    setFormData((prev) => ({
+      ...prev,
       barang_id: barangId,
-      harga_manual: "" // Reset harga manual saat ganti barang
+      harga_manual: "", // Reset harga manual saat ganti barang
     }));
     setSelectedBarang(barang);
   };
 
   const getHargaToUse = () => {
     if (!selectedBarang) return 0;
-    
+
     if (formData.tipe_harga === "SISTEM") {
       return Number(selectedBarang.harga_aktif);
     } else if (formData.tipe_harga === "LOKAL") {
@@ -136,20 +140,20 @@ export default function InputSetorPage() {
   const isHargaCustomValid = () => {
     if (!selectedBarang || formData.tipe_harga !== "CUSTOM") return true;
     if (!formData.harga_manual) return false;
-    
+
     const hargaCustom = Number(formData.harga_manual);
     const hargaMin = Number(selectedBarang.batas_bawah);
     const hargaMax = Number(selectedBarang.batas_atas);
-    
+
     return hargaCustom >= hargaMin && hargaCustom <= hargaMax;
   };
 
   const getHargaBatas = () => {
     if (!selectedBarang) return { min: 0, max: 0 };
-    
+
     return {
       min: Number(selectedBarang.batas_bawah) || 0,
-      max: Number(selectedBarang.batas_atas) || 0
+      max: Number(selectedBarang.batas_atas) || 0,
     };
   };
 
@@ -174,6 +178,39 @@ export default function InputSetorPage() {
       return;
     }
 
+    // Hitung harga per kg
+    let hargaPerKg = 0;
+    if (formData.tipe_harga === "SISTEM") {
+      hargaPerKg = Number(selectedBarang?.harga_pusat || 0);
+    } else if (formData.tipe_harga === "LOKAL") {
+      hargaPerKg = Number(
+        selectedBarang?.harga_lokal || selectedBarang?.harga_pusat || 0,
+      );
+    } else if (formData.tipe_harga === "CUSTOM") {
+      hargaPerKg = Number(formData.harga_manual);
+    }
+
+    const totalRp = hargaPerKg * parseFloat(formData.berat);
+
+    // Prepare data untuk modal konfirmasi
+    const dataKonfirmasi = {
+      nasabah_name: formData.nasabah_name,
+      barang_name: selectedBarang?.nama_barang,
+      kategori_utama: selectedBarang?.kategori_utama,
+      berat: formData.berat,
+      tipe_harga: formData.tipe_harga,
+      harga_per_kg: hargaPerKg,
+      total_rp: totalRp,
+      metode_bayar: formData.metode_bayar,
+      tipe_setoran: formData.tipe_setoran,
+      catatan: formData.catatan,
+    };
+
+    setConfirmData(dataKonfirmasi);
+    setShowConfirmModal(true);
+  };
+
+  const submitSetor = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("bs_token");
@@ -183,21 +220,20 @@ export default function InputSetorPage() {
         barang_id: formData.barang_id,
         berat: parseFloat(formData.berat),
         tipe_harga: formData.tipe_harga,
-        harga_manual: formData.tipe_harga === "CUSTOM" ? Number(formData.harga_manual) : 0,
+        harga_manual:
+          formData.tipe_harga === "CUSTOM" ? Number(formData.harga_manual) : 0,
         tipe_setoran: formData.tipe_setoran,
         metode_bayar: formData.metode_bayar,
-        catatan_petugas: formData.catatan || ""
-      };  
-
-       console.log('📤 Payload yang dikirim:', payload); // ← TAMBAH INI
+        catatan_petugas: formData.catatan || "",
+      };
 
       const res = await fetch("/api/transaksi/setor", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -207,7 +243,8 @@ export default function InputSetorPage() {
       }
 
       toast.success("Setoran berhasil dicatat!");
-      
+      setShowConfirmModal(false);
+
       // Reset form
       setFormData({
         nasabah_id: null,
@@ -218,11 +255,11 @@ export default function InputSetorPage() {
         harga_manual: "",
         tipe_setoran: "COMMUNITY",
         metode_bayar: "TABUNG",
-        catatan: ""
+        catatan: "",
       });
       setSearchNasabah("");
       setSelectedBarang(null);
-      
+      setConfirmData(null);
     } catch (err) {
       console.error(err);
       toast.error(err.message);
@@ -255,7 +292,6 @@ export default function InputSetorPage() {
   return (
     <DashboardLayout>
       <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
-        
         {/* Header */}
         <div className="space-y-2">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
@@ -269,10 +305,8 @@ export default function InputSetorPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          
           {/* Card Form */}
           <div className="p-6 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-6">
-            
             {/* Pilih Nasabah */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -290,7 +324,7 @@ export default function InputSetorPage() {
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                 />
               </div>
-              
+
               {showNasabahDropdown && (
                 <div className="absolute z-10 w-full mt-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {filteredNasabah.length === 0 ? (
@@ -348,44 +382,67 @@ export default function InputSetorPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <button
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, tipe_harga: "SISTEM", harga_manual: "" }))}
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        tipe_harga: "SISTEM",
+                        harga_manual: "",
+                      }))
+                    }
                     className={`p-4 rounded-lg border-2 transition-all ${
                       formData.tipe_harga === "SISTEM"
                         ? "border-green-600 bg-green-50 dark:bg-green-900/30"
                         : "border-gray-300 dark:border-slate-600 hover:border-green-400"
                     }`}
                   >
-                    <p className="font-semibold text-gray-800 dark:text-white">Harga Sistem</p>
+                    <p className="font-semibold text-gray-800 dark:text-white">
+                      Harga Sistem
+                    </p>
                     <p className="text-lg font-bold text-green-600 dark:text-green-400 mt-1">
                       {formatRupiah(selectedBarang.harga_aktif)}
                     </p>
                   </button>
-                  
+
                   <button
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, tipe_harga: "LOKAL", harga_manual: "" }))}
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        tipe_harga: "LOKAL",
+                        harga_manual: "",
+                      }))
+                    }
                     className={`p-4 rounded-lg border-2 transition-all ${
                       formData.tipe_harga === "LOKAL"
                         ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
                         : "border-gray-300 dark:border-slate-600 hover:border-blue-400"
                     }`}
                   >
-                    <p className="font-semibold text-gray-800 dark:text-white">Harga Lokal</p>
+                    <p className="font-semibold text-gray-800 dark:text-white">
+                      Harga Lokal
+                    </p>
                     <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-1">
-                      {formatRupiah(selectedBarang.harga_lokal || selectedBarang.harga_aktif)}
+                      {formatRupiah(
+                        selectedBarang.harga_lokal ||
+                          selectedBarang.harga_aktif,
+                      )}
                     </p>
                   </button>
-                  
+
                   <button
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, tipe_harga: "CUSTOM" }))}
+                    onClick={() =>
+                      setFormData((prev) => ({ ...prev, tipe_harga: "CUSTOM" }))
+                    }
                     className={`p-4 rounded-lg border-2 transition-all ${
                       formData.tipe_harga === "CUSTOM"
                         ? "border-orange-600 bg-orange-50 dark:bg-orange-900/30"
                         : "border-gray-300 dark:border-slate-600 hover:border-orange-400"
                     }`}
                   >
-                    <p className="font-semibold text-gray-800 dark:text-white">Harga Custom</p>
+                    <p className="font-semibold text-gray-800 dark:text-white">
+                      Harga Custom
+                    </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                       Input manual
                     </p>
@@ -407,19 +464,35 @@ export default function InputSetorPage() {
                   max={getHargaBatas().max}
                   placeholder="Masukkan harga..."
                   value={formData.harga_manual}
-                  onChange={(e) => setFormData(prev => ({ ...prev, harga_manual: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      harga_manual: e.target.value,
+                    }))
+                  }
                   className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-white ${
-                    !isHargaCustomValid() 
-                      ? "border-red-500 focus:ring-red-500" 
+                    !isHargaCustomValid()
+                      ? "border-red-500 focus:ring-red-500"
                       : "border-gray-300 dark:border-slate-600 focus:ring-orange-500"
                   }`}
                 />
                 <div className="mt-2 flex items-start gap-2 text-sm">
-                  <AlertCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
-                    !isHargaCustomValid() ? "text-red-500" : "text-gray-500 dark:text-gray-400"
-                  }`} />
-                  <p className={!isHargaCustomValid() ? "text-red-500" : "text-gray-500 dark:text-gray-400"}>
-                    Batas harga: {formatRupiah(getHargaBatas().min)} - {formatRupiah(getHargaBatas().max)}
+                  <AlertCircle
+                    className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                      !isHargaCustomValid()
+                        ? "text-red-500"
+                        : "text-gray-500 dark:text-gray-400"
+                    }`}
+                  />
+                  <p
+                    className={
+                      !isHargaCustomValid()
+                        ? "text-red-500"
+                        : "text-gray-500 dark:text-gray-400"
+                    }
+                  >
+                    Batas harga: {formatRupiah(getHargaBatas().min)} -{" "}
+                    {formatRupiah(getHargaBatas().max)}
                   </p>
                 </div>
               </div>
@@ -437,7 +510,9 @@ export default function InputSetorPage() {
                 min="0.01"
                 placeholder="0.00"
                 value={formData.berat}
-                onChange={(e) => setFormData(prev => ({ ...prev, berat: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, berat: e.target.value }))
+                }
                 className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
               />
             </div>
@@ -450,27 +525,45 @@ export default function InputSetorPage() {
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, tipe_setoran: "COMMUNITY" }))}
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      tipe_setoran: "COMMUNITY",
+                    }))
+                  }
                   className={`p-4 rounded-lg border-2 transition-all ${
                     formData.tipe_setoran === "COMMUNITY"
                       ? "border-green-600 bg-green-50 dark:bg-green-900/30"
                       : "border-gray-300 dark:border-slate-600 hover:border-green-400"
                   }`}
                 >
-                  <p className="font-semibold text-gray-800 dark:text-white">Community</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Sampah komunitas</p>
+                  <p className="font-semibold text-gray-800 dark:text-white">
+                    Community
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Sampah komunitas
+                  </p>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, tipe_setoran: "OCEAN_DEBRIS" }))}
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      tipe_setoran: "OCEAN_DEBRIS",
+                    }))
+                  }
                   className={`p-4 rounded-lg border-2 transition-all ${
                     formData.tipe_setoran === "OCEAN_DEBRIS"
                       ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30"
                       : "border-gray-300 dark:border-slate-600 hover:border-blue-400"
                   }`}
                 >
-                  <p className="font-semibold text-gray-800 dark:text-white">Ocean Debris</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Sampah laut</p>
+                  <p className="font-semibold text-gray-800 dark:text-white">
+                    Ocean Debris
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Sampah laut
+                  </p>
                 </button>
               </div>
             </div>
@@ -484,27 +577,42 @@ export default function InputSetorPage() {
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, metode_bayar: "TABUNG" }))}
+                  onClick={() =>
+                    setFormData((prev) => ({ ...prev, metode_bayar: "TABUNG" }))
+                  }
                   className={`p-4 rounded-lg border-2 transition-all ${
                     formData.metode_bayar === "TABUNG"
                       ? "border-green-600 bg-green-50 dark:bg-green-900/30"
                       : "border-gray-300 dark:border-slate-600 hover:border-green-400"
                   }`}
                 >
-                  <p className="font-semibold text-gray-800 dark:text-white">Tabung</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Masuk ke saldo</p>
+                  <p className="font-semibold text-gray-800 dark:text-white">
+                    Tabung
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Masuk ke saldo
+                  </p>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, metode_bayar: "JUAL_LANGSUNG" }))}
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      metode_bayar: "JUAL_LANGSUNG",
+                    }))
+                  }
                   className={`p-4 rounded-lg border-2 transition-all ${
                     formData.metode_bayar === "JUAL_LANGSUNG"
                       ? "border-orange-600 bg-orange-50 dark:bg-orange-900/30"
                       : "border-gray-300 dark:border-slate-600 hover:border-orange-400"
                   }`}
                 >
-                  <p className="font-semibold text-gray-800 dark:text-white">Jual Langsung</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Bayar tunai</p>
+                  <p className="font-semibold text-gray-800 dark:text-white">
+                    Jual Langsung
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Bayar tunai
+                  </p>
                 </button>
               </div>
             </div>
@@ -516,7 +624,9 @@ export default function InputSetorPage() {
               </label>
               <textarea
                 value={formData.catatan}
-                onChange={(e) => setFormData(prev => ({ ...prev, catatan: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, catatan: e.target.value }))
+                }
                 rows={3}
                 placeholder="Tambahkan catatan..."
                 className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
@@ -536,9 +646,12 @@ export default function InputSetorPage() {
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {formData.berat} kg × {formatRupiah(getHargaToUse())}/kg
-                  {formData.tipe_harga === "CUSTOM" && !isHargaCustomValid() && (
-                    <span className="text-red-500 ml-2">⚠️ Harga diluar batas!</span>
-                  )}
+                  {formData.tipe_harga === "CUSTOM" &&
+                    !isHargaCustomValid() && (
+                      <span className="text-red-500 ml-2">
+                        ⚠️ Harga diluar batas!
+                      </span>
+                    )}
                 </p>
               </div>
             )}
@@ -547,7 +660,10 @@ export default function InputSetorPage() {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading || (formData.tipe_harga === "CUSTOM" && !isHargaCustomValid())}
+            disabled={
+              loading ||
+              (formData.tipe_harga === "CUSTOM" && !isHargaCustomValid())
+            }
             className="w-full py-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Save className="w-5 h-5" />
@@ -555,6 +671,14 @@ export default function InputSetorPage() {
           </button>
         </form>
       </div>
+
+      <ConfirmSetorModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={submitSetor}
+        data={confirmData}
+        loading={loading}
+      />
     </DashboardLayout>
   );
 }

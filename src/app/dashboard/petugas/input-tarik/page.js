@@ -3,36 +3,40 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
+import ConfirmTarikModal from "@/components/ConfirmTarikModal";
 import {
   Search,
   Wallet,
   Save,
   Users,
   DollarSign,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
 
 export default function InputTarikPage() {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
-  
+
   // Master Data
   const [nasabahList, setNasabahList] = useState([]);
-  
+
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmData, setConfirmData] = useState(null);
+
   // Search States
   const [searchNasabah, setSearchNasabah] = useState("");
   const [filteredNasabah, setFilteredNasabah] = useState([]);
   const [showNasabahDropdown, setShowNasabahDropdown] = useState(false);
-  
+
   // Form Data
   const [formData, setFormData] = useState({
     nasabah_id: null,
     nasabah_name: "",
     saldo_nasabah: 0,
     jumlah_tarik: "",
-    catatan_tarik: ""
+    catatan_tarik: "",
   });
-  
+
   const [displayJumlah, setDisplayJumlah] = useState("");
 
   useEffect(() => {
@@ -41,10 +45,11 @@ export default function InputTarikPage() {
 
   useEffect(() => {
     if (searchNasabah) {
-      const filtered = nasabahList.filter(n => 
-        n.nama_lengkap.toLowerCase().includes(searchNasabah.toLowerCase()) ||
-        n.nickname.toLowerCase().includes(searchNasabah.toLowerCase()) ||
-        (n.nik && n.nik.includes(searchNasabah))
+      const filtered = nasabahList.filter(
+        (n) =>
+          n.nama_lengkap.toLowerCase().includes(searchNasabah.toLowerCase()) ||
+          n.nickname.toLowerCase().includes(searchNasabah.toLowerCase()) ||
+          (n.nik && n.nik.includes(searchNasabah)),
       );
       setFilteredNasabah(filtered);
     } else {
@@ -58,7 +63,7 @@ export default function InputTarikPage() {
       const token = localStorage.getItem("bs_token");
 
       const res = await fetch("/api/users/petugas/daftar-nasabah?limit=100", {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
@@ -77,11 +82,11 @@ export default function InputTarikPage() {
   };
 
   const handleSelectNasabah = (nasabah) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       nasabah_id: nasabah.id_user,
       nasabah_name: nasabah.nama_lengkap,
-      saldo_nasabah: nasabah.total_saldo || 0
+      saldo_nasabah: nasabah.total_saldo || 0,
     }));
     setSearchNasabah(nasabah.nama_lengkap);
     setShowNasabahDropdown(false);
@@ -100,9 +105,9 @@ export default function InputTarikPage() {
   const handleJumlahChange = (e) => {
     const formatted = formatRupiahInput(e.target.value);
     setDisplayJumlah(formatted);
-    setFormData(prev => ({ 
-      ...prev, 
-      jumlah_tarik: parseRupiahToNumber(formatted) 
+    setFormData((prev) => ({
+      ...prev,
+      jumlah_tarik: parseRupiahToNumber(formatted),
     }));
   };
 
@@ -121,6 +126,19 @@ export default function InputTarikPage() {
       return;
     }
 
+    // Prepare data untuk modal
+    const dataKonfirmasi = {
+      nasabah_name: formData.nasabah_name,
+      saldo_nasabah: formData.saldo_nasabah,
+      jumlah_tarik: formData.jumlah_tarik,
+      catatan_tarik: formData.catatan_tarik,
+    };
+
+    setConfirmData(dataKonfirmasi);
+    setShowConfirmModal(true);
+  };
+
+  const submitTarik = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("bs_token");
@@ -128,16 +146,16 @@ export default function InputTarikPage() {
       const payload = {
         nasabah_id: formData.nasabah_id,
         jumlah_tarik: formData.jumlah_tarik,
-        catatan_tarik: formData.catatan_tarik || ""
+        catatan_tarik: formData.catatan_tarik || "",
       };
 
       const res = await fetch("/api/transaksi/tarik", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -147,21 +165,22 @@ export default function InputTarikPage() {
       }
 
       toast.success("Penarikan berhasil dicatat!");
-      
+      setShowConfirmModal(false);
+
       // Reset form
       setFormData({
         nasabah_id: null,
         nasabah_name: "",
         saldo_nasabah: 0,
         jumlah_tarik: "",
-        catatan_tarik: ""
+        catatan_tarik: "",
       });
       setSearchNasabah("");
       setDisplayJumlah("");
-      
-      // Refresh nasabah list untuk update saldo
+      setConfirmData(null);
+
+      // Refresh nasabah list
       fetchNasabahList();
-      
     } catch (err) {
       console.error(err);
       toast.error(err.message);
@@ -194,7 +213,6 @@ export default function InputTarikPage() {
   return (
     <DashboardLayout>
       <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
-        
         {/* Header */}
         <div className="space-y-2">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
@@ -209,7 +227,6 @@ export default function InputTarikPage() {
         {/* Card Form */}
         <div className="space-y-6">
           <div className="p-6 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-6">
-            
             {/* Pilih Nasabah */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -227,7 +244,7 @@ export default function InputTarikPage() {
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
                 />
               </div>
-              
+
               {showNasabahDropdown && (
                 <div className="absolute z-10 w-full mt-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {filteredNasabah.length === 0 ? (
@@ -296,7 +313,8 @@ export default function InputTarikPage() {
               </div>
               {formData.jumlah_tarik > 0 && formData.saldo_nasabah > 0 && (
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Sisa saldo: {formatRupiah(formData.saldo_nasabah - formData.jumlah_tarik)}
+                  Sisa saldo:{" "}
+                  {formatRupiah(formData.saldo_nasabah - formData.jumlah_tarik)}
                 </p>
               )}
             </div>
@@ -308,7 +326,12 @@ export default function InputTarikPage() {
               </label>
               <textarea
                 value={formData.catatan_tarik}
-                onChange={(e) => setFormData(prev => ({ ...prev, catatan_tarik: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    catatan_tarik: e.target.value,
+                  }))
+                }
                 rows={3}
                 placeholder="Tambahkan catatan penarikan..."
                 className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-white"
@@ -316,35 +339,42 @@ export default function InputTarikPage() {
             </div>
 
             {/* Warning */}
-            {formData.jumlah_tarik > 0 && formData.jumlah_tarik > formData.saldo_nasabah && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700">
-                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-600 dark:text-red-400">
-                  Jumlah penarikan melebihi saldo nasabah!
-                </p>
-              </div>
-            )}
-
-            {/* Total Preview */}
-            {formData.jumlah_tarik > 0 && formData.jumlah_tarik <= formData.saldo_nasabah && (
-              <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Jumlah Ditarik
-                  </p>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {formatRupiah(formData.jumlah_tarik)}
+            {formData.jumlah_tarik > 0 &&
+              formData.jumlah_tarik > formData.saldo_nasabah && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700">
+                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    Jumlah penarikan melebihi saldo nasabah!
                   </p>
                 </div>
-              </div>
-            )}
+              )}
+
+            {/* Total Preview */}
+            {formData.jumlah_tarik > 0 &&
+              formData.jumlah_tarik <= formData.saldo_nasabah && (
+                <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Jumlah Ditarik
+                    </p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {formatRupiah(formData.jumlah_tarik)}
+                    </p>
+                  </div>
+                </div>
+              )}
           </div>
 
           {/* Submit Button */}
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={loading || !formData.nasabah_id || formData.jumlah_tarik > formData.saldo_nasabah || formData.jumlah_tarik <= 0}
+            disabled={
+              loading ||
+              !formData.nasabah_id ||
+              formData.jumlah_tarik > formData.saldo_nasabah ||
+              formData.jumlah_tarik <= 0
+            }
             className="w-full py-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Save className="w-5 h-5" />
@@ -352,6 +382,14 @@ export default function InputTarikPage() {
           </button>
         </div>
       </div>
+
+      <ConfirmTarikModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={submitTarik}
+        data={confirmData}
+        loading={loading}
+      />
     </DashboardLayout>
   );
 }
