@@ -1,25 +1,39 @@
-// src/app/api/users/petugas/dashboard/route.js
+// src/app/api/admin/dashboard/route.js
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { analyticsService } from '@/services/analyticsService';
 
 export async function GET(request) {
+  // 1. Cek Keamanan (Hanya Admin)
   const currentUser = await getCurrentUser(request);
 
-  if (!currentUser || currentUser.peran !== 'PETUGAS') {
-    return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
+  if (!currentUser || currentUser.peran !== 'ADMIN') {
+    return NextResponse.json({ error: 'Akses ditolak - hanya untuk admin' }, { status: 403 });
   }
 
   try {
-    // Ambil unit dari user (asumsi bank_sampah_id ada di user)
-    if (!currentUser.bank_sampah_id) {
-      return NextResponse.json({ error: 'Petugas tidak terkait unit' }, { status: 400 });
-    }
+    // 2. Tangkap query params untuk filter tanggal
+    const { searchParams } = new URL(request.url);
+    const filters = {
+      startDate: searchParams.get('startDate'),
+      endDate: searchParams.get('endDate'),
+    };
 
-    const summary = await analyticsService.getPetugasUnitSummary(currentUser.bank_sampah_id);
-    return NextResponse.json(summary);
+    // 3. Eksekusi Analytics Service dengan Filter
+    // Sekarang data yang dikembalikan sudah terfilter sesuai tanggal yang dipilih Admin
+    const data = await analyticsService.getAdminGlobalSummary(filters);
+    
+    // 4. Return Data Success
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('Dashboard petugas error:', error);
-    return NextResponse.json({ error: 'Gagal mengambil data dashboard unit' }, { status: 500 });
+    // DEBUG LOG: Sangat penting agar error asli kelihatan di Server Logs
+    console.error('--- ERROR DASHBOARD ADMIN ---');
+    console.error('Message:', error.message);
+    console.error('-----------------------------');
+
+    return NextResponse.json({ 
+      error: 'Gagal mengambil data dashboard admin',
+      message: error.message 
+    }, { status: 500 });
   }
 }

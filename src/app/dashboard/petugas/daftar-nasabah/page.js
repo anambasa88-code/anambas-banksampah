@@ -8,10 +8,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  Eye,
 } from "lucide-react";
 import TambahNasabahModal from "@/components/TambahNasabahModal";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useRouter } from "next/navigation";
 
 export default function DaftarNasabahPage() {
   const [nasabah, setNasabah] = useState([]);
@@ -19,6 +21,7 @@ export default function DaftarNasabahPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const router = useRouter();
   const [pagination, setPagination] = useState({
     total: 0,
     totalPages: 1,
@@ -229,7 +232,13 @@ export default function DaftarNasabahPage() {
                         NIK
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
-                        JK
+                        Jenis Kelamin
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
+                        Desa
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
+                        Alamat
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
                         Saldo
@@ -263,19 +272,22 @@ export default function DaftarNasabahPage() {
                         <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                           {n.jenis_kelamin}
                         </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                          {n.desa || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                          {n.alamat || "-"}
+                        </td>
                         <td className="px-4 py-3 text-sm text-right font-medium text-green-600 dark:text-green-400">
                           {formatRupiah(n.total_saldo)}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          {n.is_blocked ? (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                              Terblokir
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                              Aktif
-                            </span>
-                          )}
+                          <button
+                            onClick={() => router.push(`/dashboard/petugas/detail-nasabah/${n.id_user}`)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                          >
+                            Detail
+                          </button>
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">

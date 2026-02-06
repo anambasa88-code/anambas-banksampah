@@ -23,10 +23,12 @@ model User {
   id_user                 Int              @id @default(autoincrement())
   nickname                String           @unique @db.VarChar(20)
   nama_lengkap            String           @db.VarChar(100)
-  nik                     String?           @unique @db.VarChar(16)
+  nik                     String?          @unique @db.VarChar(16)
   jenis_kelamin           JenisKelamin
   peran                   Peran
   bank_sampah_id          Int?
+  desa                    String?
+  alamat                  String?
   total_saldo             Decimal          @default(0.00) @db.Decimal(15, 2)
   pin_hash                String           @db.VarChar(255)
   wrong_pin_count         Int              @default(0)
@@ -144,7 +146,7 @@ model TransaksiTarik {
 
   @@index([nasabah_id])
   @@index([status])
-  @@index([waktu])
+  @@index([petugas_id, waktu])
   @@map("transaksi_tarik")
 }
 
@@ -203,6 +205,6 @@ enum StatusTarik {
 }
 
 enum MetodeBayar {
-  TABUNG        
-  JUAL_LANGSUNG  
+  TABUNG
+  JUAL_LANGSUNG
 }

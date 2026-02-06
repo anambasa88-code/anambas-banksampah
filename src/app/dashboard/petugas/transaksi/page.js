@@ -1,23 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
-import {
-  Search,
-  RefreshCw,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  User,
-  Package,
-} from "lucide-react";
+import { Search, RefreshCw, ChevronLeft, ChevronRight, Filter, TrendingUp, TrendingDown, Calendar, User, Package, FileSpreadsheet, FileText, } from "lucide-react";
+import ExportRiwayatTransaksi from "@/components/ExportRiwayatTransaksi";
 
 export default function TransaksiPage() {
   const [transaksi, setTransaksi] = useState([]);
+  const exportRef = useRef();
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({
@@ -104,6 +95,12 @@ export default function TransaksiPage() {
 
   return (
     <DashboardLayout>
+      {/* Generator Hidden */}
+      <ExportRiwayatTransaksi
+        ref={exportRef}
+        data={transaksi}
+        filters={filters}
+      />
       <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -129,6 +126,24 @@ export default function TransaksiPage() {
             >
               <Filter className="w-4 h-4" />
               <span className="font-medium">Filter</span>
+            </button>
+
+            {/* Tombol Excel */}
+            <button
+              onClick={() => exportRef.current.generateExcel()}
+              className="flex items-center gap-2 px-3 py-2 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-lg text-sm font-bold hover:bg-emerald-200 transition-all border border-emerald-200 dark:border-emerald-800"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span className="hidden md:inline">Excel</span>
+            </button>
+
+            {/* Tombol PDF */}
+            <button
+              onClick={() => exportRef.current.generatePDF()}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 rounded-lg text-sm font-bold hover:bg-slate-200 transition-all border border-gray-200 dark:border-slate-700"
+            >
+              <FileText className="w-4 h-4" />
+              <span className="hidden md:inline">PDF</span>
             </button>
 
             {/* Tombol Refresh */}
@@ -290,7 +305,8 @@ export default function TransaksiPage() {
                             <div>
                               <p>{t.nama_barang_snapshot}</p>
                               <p className="text-xs">
-                                {parseFloat(t.berat).toFixed(2)} kg × {formatRupiah(t.harga_deal)}
+                                {parseFloat(t.berat).toFixed(2)} kg ×{" "}
+                                {formatRupiah(t.harga_deal)}
                               </p>
                               <p className="text-xs">
                                 {t.metode_bayar === "TABUNG" ? (

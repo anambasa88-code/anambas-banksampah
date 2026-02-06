@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
+import ExportDashboardAdmin from "@/components/ExportDashboardAdmin";
 import {
   Users,
   Package,
@@ -16,11 +17,32 @@ import {
   Building2,
   ChevronDown,
   ChevronUp,
+  Categories,
+  Search,
+  FileSpreadsheet,
+  FileText,
 } from "lucide-react";
+const CATEGORIES = [
+  { value: "SEMUA", label: "Semua Kategori" },
+  { value: "PLASTIK", label: "Plastik" },
+  { value: "LOGAM", label: "Logam" },
+  { value: "KERTAS", label: "Kertas" },
+  { value: "LAINNYA", label: "Lainnya" },
+  { value: "CAMPURAN", label: "Campuran" },
+];
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [expandedUnits, setExpandedUnits] = useState({});
+  const [activeTab, setActiveTab] = useState("SEMUA");
+  const [filters, setFilters] = useState({
+    mode: "DATE", // Pilihan: "DATE" atau "MONTH"
+    startDate: "",
+    endDate: "",
+    startMonth: "",
+    endMonth: "",
+  });
+  const exportRef = useRef();
   const [data, setData] = useState({
     global: {
       total_kg: 0,
@@ -39,43 +61,106 @@ export default function AdminDashboard() {
     per_unit: [],
   });
 
-  const fetchDashboard = async () => {
+  const filteredGlobalSampah =
+    data.global?.sampah_terkumpul?.filter((item) => {
+      return (
+        activeTab === "SEMUA" ||
+        (item.kategori_utama || "LAINNYA") === activeTab
+      );
+    }) || [];
+
+  const setQuickFilter = (type) => {
+    const now = new Date();
+    let start = "";
+    let end = "";
+
+    if (type === "THIS_MONTH") {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    } else if (type === "LAST_MONTH") {
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      end = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else if (type === "THIS_YEAR") {
+      start = new Date(now.getFullYear(), 0, 1);
+      end = new Date(now.getFullYear(), 11, 31);
+    }
+
+    // Format ke YYYY-MM-DD agar masuk ke input type="date"
+    const formatDate = (date) => date.toISOString().split("T")[0];
+
+    setFilters({
+      startDate: formatDate(start),
+      endDate: formatDate(end),
+    });
+  };
+  // Ganti fungsi fetchDashboard lama dengan ini
+  const fetchDashboard = async (sDate, eDate) => {
     try {
       setLoading(true);
       const token = localStorage.getItem("bs_token");
-      if (!token) {
-        toast.error("Token tidak ditemukan, silakan login ulang");
-        window.location.href = "/auth/login";
-        return;
-      }
 
-      const res = await fetch("/api/users/admin/dashboard", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Gunakan parameter sDate/eDate jika ada, jika tidak pakai dari state filters
+      const startDate = sDate || filters.startDate;
+      const endDate = eDate || filters.endDate;
 
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          toast.error("Sesi berakhir, silakan login ulang");
-          localStorage.clear();
-          window.location.href = "/auth/login";
-          return;
-        }
-        throw new Error("Gagal mengambil dashboard");
-      }
+      const params = new URLSearchParams();
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
 
-      const json = await res.json();
-      setData(json || { global: {}, per_unit: [] });
-    } catch (err) {
-      console.error(err);
-      toast.error("Gagal memuat dashboard");
+      console.log("Fetching with params:", params.toString()); // Debug log
+
+      const res = await fetch(
+        `/api/users/admin/dashboard?${params.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      if (!res.ok) throw new Error("Gagal mengambil data");
+      const result = await res.json();
+      setData(result);
+    } catch (error) {
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDashboard();
+    fetchDashboard(); // Ini cuma jalan sekali pas pertama kali halaman dibuka
   }, []);
+
+  // Ganti fungsi handleSearch lama dengan ini
+  const handleSearch = () => {
+    let finalStartDate = filters.startDate;
+    let finalEndDate = filters.endDate;
+
+    if (filters.mode === "MONTH") {
+      if (!filters.startMonth || !filters.endMonth) {
+        return toast.error("Pilih bulan mulai dan bulan akhir!");
+      }
+
+      // Format: YYYY-MM-01
+      finalStartDate = `${filters.startMonth}-01`;
+
+      // Ambil hari terakhir di bulan tersebut
+      const [year, month] = filters.endMonth.split("-");
+      const lastDay = new Date(year, month, 0).getDate();
+      finalEndDate = `${filters.endMonth}-${lastDay}`;
+    }
+
+    if (!finalStartDate || !finalEndDate) {
+      return toast.error("Rentang waktu belum lengkap!");
+    }
+
+    // Validasi urutan waktu
+    if (new Date(finalEndDate) < new Date(finalStartDate)) {
+      return toast.error("Rentang waktu terbalik!");
+    }
+
+    // Kirim data langsung ke fungsi fetch
+    fetchDashboard(finalStartDate, finalEndDate);
+  };
 
   const toggleUnit = (unitId) => {
     setExpandedUnits((prev) => ({ ...prev, [unitId]: !prev[unitId] }));
@@ -116,6 +201,13 @@ export default function AdminDashboard() {
 
   return (
     <DashboardLayout>
+      <ExportDashboardAdmin
+        ref={exportRef}
+        data={data}
+        startDate={filters.startDate}
+        endDate={filters.endDate}
+        category={activeTab}
+      />
       <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6 md:space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -127,6 +219,25 @@ export default function AdminDashboard() {
               Statistik global seluruh unit
             </p>
           </div>
+          <div className="flex items-center gap-2">
+            {/* Tombol Export Excel - Soft Blue Style */}
+            <button
+              onClick={() => exportRef.current.generateExcel()}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl text-xs font-bold hover:bg-blue-200 transition-all shadow-sm"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span className="hidden sm:inline">Excel</span>
+            </button>
+
+            {/* Tombol Export PDF - Soft Slate Style */}
+            <button
+              onClick={() => exportRef.current.generatePDF()}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all shadow-sm"
+            >
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">PDF</span>
+            </button>
+          </div>
           <button
             onClick={fetchDashboard}
             disabled={loading}
@@ -135,6 +246,126 @@ export default function AdminDashboard() {
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             <span className="hidden md:inline">Refresh</span>
           </button>
+        </div>
+
+        {/* FILTER SECTION */}
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 mb-6 shadow-sm">
+          {/* Tab Switcher */}
+          <div className="flex gap-1 p-1 bg-gray-100 dark:bg-slate-800 rounded-xl w-fit mb-6">
+            <button
+              onClick={() => setFilters({ ...filters, mode: "DATE" })}
+              className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                filters.mode === "DATE"
+                  ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600"
+                  : "text-gray-500"
+              }`}
+            >
+              Rentang Tanggal
+            </button>
+            <button
+              onClick={() => setFilters({ ...filters, mode: "MONTH" })}
+              className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                filters.mode === "MONTH"
+                  ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600"
+                  : "text-gray-500"
+              }`}
+            >
+              Pilih Bulan
+            </button>
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-end gap-4">
+            <div className="flex-1 grid grid-cols-2 gap-4">
+              {filters.mode === "DATE" ? (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">
+                      Dari Tanggal
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm outline-none"
+                      value={filters.startDate}
+                      onChange={(e) =>
+                        setFilters({ ...filters, startDate: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">
+                      Sampai Tanggal
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm outline-none"
+                      value={filters.endDate}
+                      onChange={(e) =>
+                        setFilters({ ...filters, endDate: e.target.value })
+                      }
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">
+                      Dari Bulan
+                    </label>
+                    <input
+                      type="month"
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm outline-none"
+                      value={filters.startMonth}
+                      onChange={(e) =>
+                        setFilters({ ...filters, startMonth: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">
+                      Sampai Bulan
+                    </label>
+                    <input
+                      type="month"
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm outline-none"
+                      value={filters.endMonth}
+                      onChange={(e) =>
+                        setFilters({ ...filters, endMonth: e.target.value })
+                      }
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleSearch}
+                disabled={loading}
+                className="px-8 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all flex items-center gap-2 shadow-lg shadow-blue-500/20"
+              >
+                {loading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
+                Cari
+              </button>
+              <button
+                onClick={() =>
+                  setFilters({
+                    mode: "DATE",
+                    startDate: "",
+                    endDate: "",
+                    startMonth: "",
+                    endMonth: "",
+                  })
+                }
+                className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 text-gray-500 hover:bg-gray-100 transition-all"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Global Stats - 4 Cards */}
@@ -361,6 +592,86 @@ export default function AdminDashboard() {
                   </span>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Judul & Filter Kategori */}
+        <div className="space-y-4 mt-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+              Total Sampah Terkumpul (Seluruh Unit)
+            </h2>
+
+            {/* Tabs Kategori */}
+            <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat.value}
+                  onClick={() => setActiveTab(cat.value)}
+                  className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                    activeTab === cat.value
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                      : "bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-slate-700"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tabel Data Global */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-slate-800">
+                  <tr className="text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4">No</th>
+                    <th className="px-6 py-4">Nama Sampah</th>
+                    <th className="px-6 py-4 text-center">Kategori</th>
+                    <th className="px-6 py-4 text-right">Total Berat (kg)</th>
+                    <th className="px-6 py-4 text-right">Total Transaksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-slate-800">
+                  {filteredGlobalSampah.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        className="px-6 py-12 text-center text-gray-500 italic"
+                      >
+                        Data tidak ditemukan untuk periode ini.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredGlobalSampah.map((item, idx) => (
+                      <tr
+                        key={item.barang_id}
+                        className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
+                      >
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {idx + 1}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-semibold text-gray-800 dark:text-white">
+                          {item.nama_sampah}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase">
+                            {item.kategori_utama}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-right font-bold text-gray-900 dark:text-white">
+                          {item.total_berat.toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-right text-gray-500">
+                          {item.total_transaksi}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

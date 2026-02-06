@@ -37,6 +37,7 @@ export const reportService = {
         berat: Number(item.berat),
         harga_per_kg: Number(item.harga_deal),
         total_rp: Number(item.total_rp),
+        catatan_petugas: item.catatan_petugas,
         metode_bayar: item.metode_bayar,
         barang: {
           nama: item.nama_barang_snapshot || item.barang?.nama_barang,
@@ -63,6 +64,7 @@ export const reportService = {
         id: item.id_tarik,
         jenis: 'TARIK',
         waktu: item.waktu,
+        catatan_tarik: item.catatan_tarik,
         jumlah: Number(item.jumlah_tarik),
         status: item.status
       })));

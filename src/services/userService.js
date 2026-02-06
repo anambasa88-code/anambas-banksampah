@@ -113,9 +113,10 @@ export const userService = {
     return result;
   },
 
- async createUser(data, actorRole, actorId, actorBankSampahId) {
+  async createUser(data, actorRole, actorId, actorBankSampahId) {
     try {
-      const { nama_lengkap, peran, unit_id, nik, jenis_kelamin } = data;
+      const { nama_lengkap, peran, unit_id, nik, jenis_kelamin, alamat, desa } =
+        data;
 
       if (!unit_id) throw new Error("Unit ID harus dipilih.");
       const bankSampahIdInt = parseInt(unit_id);
@@ -123,7 +124,7 @@ export const userService = {
       // 1. VALIDASI NIK (Human Readable Error)
       if (nik && nik.trim() !== "") {
         const cleanedNik = nik.trim();
-        
+
         // Cek panjang NIK tepat 16 digit
         if (cleanedNik.length !== 16) {
           throw new Error("NIK harus berjumlah tepat 16 digit.");
@@ -131,11 +132,13 @@ export const userService = {
 
         // Cek apakah NIK sudah dipakai di database
         const existingNik = await prisma.user.findFirst({
-          where: { nik: cleanedNik }
+          where: { nik: cleanedNik },
         });
 
         if (existingNik) {
-          throw new Error("NIK sudah terdaftar pada petugas atau nasabah lain.");
+          throw new Error(
+            "NIK sudah terdaftar pada petugas atau nasabah lain.",
+          );
         }
       }
 
@@ -144,7 +147,9 @@ export const userService = {
         if (peran !== "NASABAH")
           throw new Error("Petugas hanya boleh mendaftarkan Nasabah baru.");
         if (bankSampahIdInt !== actorBankSampahId)
-          throw new Error("Petugas hanya boleh mendaftarkan nasabah di unitnya sendiri.");
+          throw new Error(
+            "Petugas hanya boleh mendaftarkan nasabah di unitnya sendiri.",
+          );
       }
 
       if (peran === "ADMIN")
@@ -180,6 +185,8 @@ export const userService = {
           total_saldo: 0,
           must_change_pin: true,
           is_blocked: false,
+          alamat: alamat || null,
+          desa: desa || null,
         },
       });
 
@@ -195,7 +202,7 @@ export const userService = {
       throw error;
     }
   },
-  async createPetugas(data, actorId, actorRole = 'ADMIN') {
+  async createPetugas(data, actorId, actorRole = "ADMIN") {
     try {
       const { nama_lengkap, jenis_kelamin, unit_id, nik } = data;
 
@@ -214,25 +221,27 @@ export const userService = {
       // 1. Validasi Duplikasi NIK (Jika diisi)
       if (nik && nik.trim() !== "") {
         const existingNik = await prisma.user.findFirst({
-          where: { nik: nik.trim() }
+          where: { nik: nik.trim() },
         });
 
         if (existingNik) {
-          throw new Error("NIK sudah terdaftar pada petugas atau nasabah lain.");
+          throw new Error(
+            "NIK sudah terdaftar pada petugas atau nasabah lain.",
+          );
         }
       }
 
       // Mapping "L" → "LAKI_LAKI", "P" → "PEREMPUAN"
       let finalJenisKelamin;
-      if (jenis_kelamin === 'L' || jenis_kelamin === 'LAKI_LAKI') {
-        finalJenisKelamin = 'LAKI_LAKI';
-      } else if (jenis_kelamin === 'P' || jenis_kelamin === 'PEREMPUAN') {
-        finalJenisKelamin = 'PEREMPUAN';
+      if (jenis_kelamin === "L" || jenis_kelamin === "LAKI_LAKI") {
+        finalJenisKelamin = "LAKI_LAKI";
+      } else if (jenis_kelamin === "P" || jenis_kelamin === "PEREMPUAN") {
+        finalJenisKelamin = "PEREMPUAN";
       } else {
-        finalJenisKelamin = 'LAKI_LAKI'; 
+        finalJenisKelamin = "LAKI_LAKI";
       }
 
-      const peran = 'PETUGAS';
+      const peran = "PETUGAS";
       const unitPrefix = UNIT_PREFIXES[bankSampahIdInt] || "USR";
       const roleCode = ROLE_CODES[peran] || "P";
 
@@ -240,7 +249,7 @@ export const userService = {
         where: { bank_sampah_id: bankSampahIdInt, peran: peran },
       });
 
-      const nextNumber = (userCount + 1).toString().padStart(4, '0');
+      const nextNumber = (userCount + 1).toString().padStart(4, "0");
       const autoNickname = `${unitPrefix}-${roleCode}-${nextNumber}`;
 
       // Default PIN Petugas: 654321
@@ -265,9 +274,9 @@ export const userService = {
       });
 
       await logService.record(
-        actorId, 
-        "CREATE_PETUGAS", 
-        `Mendaftarkan petugas baru: ${autoNickname} (${nama_lengkap})`
+        actorId,
+        "CREATE_PETUGAS",
+        `Mendaftarkan petugas baru: ${autoNickname} (${nama_lengkap})`,
       );
 
       return newPetugas;
@@ -381,6 +390,8 @@ export const userService = {
           nama_lengkap: true,
           nik: true,
           jenis_kelamin: true,
+          desa: true, // <--- TAMBAHKAN INI
+          alamat: true,
           total_saldo: true,
           is_blocked: true,
           created_at: true,
@@ -415,8 +426,8 @@ export const userService = {
     });
   },
 
- async updatePetugas(id_user, data, actorRole) {
-    if (actorRole !== 'ADMIN') {
+  async updatePetugas(id_user, data, actorRole) {
+    if (actorRole !== "ADMIN") {
       throw new Error("Hanya Admin yang dapat mengubah data petugas.");
     }
 
@@ -438,8 +449,8 @@ export const userService = {
 
     // 2. Mapping Enum Jenis Kelamin
     let finalJenisKelamin = jenis_kelamin;
-    if (jenis_kelamin === 'L') finalJenisKelamin = 'LAKI_LAKI';
-    if (jenis_kelamin === 'P') finalJenisKelamin = 'PEREMPUAN';
+    if (jenis_kelamin === "L") finalJenisKelamin = "LAKI_LAKI";
+    if (jenis_kelamin === "P") finalJenisKelamin = "PEREMPUAN";
 
     // 3. Eksekusi Update
     const updated = await prisma.user.update({
