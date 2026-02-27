@@ -1,231 +1,301 @@
-// src/app/page.tsx
-import Link from "next/link";
-import {
-  Leaf,
-  Wallet,
-  Package,
-  Users,
-  Shield,
-  BarChart3,
-  ArrowRight,
-  Sparkles,
-  TrendingUp,
-  Waves,
-  UsersRound,
-  Recycle,
-} from "lucide-react";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import Marquee from "react-fast-marquee";
+import { Recycle, Scale, Wallet, Instagram, CheckCircle } from "lucide-react";
+
+export default function LandingPage() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   return (
-    <main className="min-h-screen bg-[var(--background)] flex flex-col">
-      {/* Hero Section */}
-      <section className="py-20 md:py-32 bg-gradient-to-br from-green-50 via-green-100 to-green-50">
-        <div className="container grid gap-12 md:grid-cols-2 items-center">
-          {/* Text */}
-          <div className="space-y-6 text-center md:text-left">
-            <h1 className="text-3xl md:text-5xl font-extrabold leading-tight text-[var(--foreground)]">
-              Ekosistem Digital Pengelolaan Sampah <br />
-              <span className="text-[var(--primary)]">yang Terintegrasi</span>
-            </h1>
-            <p className="text-base md:text-lg text-[var(--muted)] leading-relaxed max-w-xl mx-auto md:mx-0">
-              Bank Sampah Anambas menghubungkan nasabah, petugas, dan admin
-              dalam satu platform modern untuk mencatat setoran, mengatur harga,
-              memantau transaksi, dan mencairkan dana secara cepat dan
-              transparan.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center md:justify-start">
+    <div className="bg-white text-slate-700">
+      {/* ===== NAVBAR PREMIUM ===== */}
+      <header className="sticky top-0 z-50">
+        <div className="bg-white/60 backdrop-blur-xl shadow-[0_4px_30px_rgba(0,0,0,0.06)] border-b border-white/40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
+            {/* LOGO AREA */}
+            <Link href="/" className="flex items-center gap-4 group">
+              <Image
+                src="/logos/parongpong.png"
+                alt="Parongpong"
+                width={42}
+                height={42}
+                className="object-contain transition-all duration-300 group-hover:scale-110"
+              />
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-800">
+                Bank Sampah Anambas
+              </h1>
+              <Image
+                src="/logos/anambas.png"
+                alt="Anambas Foundation"
+                width={42}
+                height={42}
+                className="object-contain transition-all duration-300 group-hover:scale-110"
+              />
+            </Link>
+
+            {/* BUTTON AREA */}
+            <div className="hidden md:flex items-center gap-4">
               <Link
                 href="/auth/login"
-                className="inline-flex items-center gap-2 px-6 py-3 text-base md:text-lg font-medium rounded-lg bg-green-600 text-white shadow-md hover:shadow-lg hover:bg-green-700 transition"
+                className="px-6 py-2.5 rounded-full font-semibold text-white bg-[#1D293D] hover:bg-[#233049] transition-all"
               >
-                <BarChart3 className="h-5 w-5" />
-                Masuk ke Dashboard
+                Login
               </Link>
             </div>
+
+            {/* MOBILE ICON */}
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="md:hidden text-slate-700"
+            >
+              {isMenuOpen ? (
+                <svg
+                  className="w-7 h-7"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-7 h-7"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 8h16M4 16h16"
+                  />
+                </svg>
+              )}
+            </button>
           </div>
 
-          {/* Sneak Peek Dashboard */}
-          <div className="relative group block overflow-x-auto -mx-4 px-4 lg:mx-0 lg:px-0">
-            {/* Glow background */}
-            <div className="absolute -inset-6 bg-gradient-to-r from-green-500/30 to-green-600/20 rounded-3xl blur-3xl group-hover:blur-xl transition duration-1000 -z-10"></div>
+          {/* MOBILE MENU */}
+          {isMenuOpen && (
+            <div className="md:hidden flex flex-col gap-3 bg-white px-6 py-4 border-t">
+              <Link
+                href="/auth/login"
+                className="bg-white text-center text-slate-700 border border-slate-300 py-2 rounded-xl"
+              >
+                Login
+              </Link>
+            </div>
+          )}
+        </div>
+      </header>
 
-            {/* Dashboard Card */}
-            <div className="relative bg-white rounded-3xl shadow-2xl border border-green-200 overflow-hidden transform hover:scale-[1.015] transition-all duration-700">
-              {/* Window bar */}
-              <div className="bg-gray-100 px-6 py-4 flex items-center gap-3">
-                <div className="flex gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-800"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-600"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-400"></div>
-                </div>
-                <span className="text-xs font-medium text-gray-500">
-                  banksampah-anambas.com
-                </span>
+      {/* ===== HERO SECTION ===== */}
+      <section
+        className="relative bg-cover bg-center h-[80vh]"
+        style={{ backgroundImage: `url('/anambas-bg4.jpg')` }}
+      >
+        <div className="absolute inset-0 bg-black/40"></div>
+        <div className="relative max-w-7xl mx-auto px-4 h-full flex flex-col justify-center text-center text-white">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight drop-shadow-lg">
+            Ubah Sampah Jadi Berkah
+          </h1>
+          <p className="mt-4 text-lg sm:text-xl max-w-2xl mx-auto">
+            Program digital resmi Parongpong & Anambas Foundation untuk
+            menciptakan ekosistem bank sampah modern.
+          </p>
+
+          {/* TOMBOL LOGIN TRANSPARAN */}
+          <div className="mt-10">
+            <Link
+              href="/auth/login"
+              className="inline-block px-12 py-5 text-xl sm:text-2xl font-black tracking-widest uppercase border-4 border-white bg-transparent hover:bg-white hover:text-slate-900 transition-all duration-300 rounded-2xl shadow-2xl"
+            >
+               Login
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== CARA KERJA ===== */}
+      <section id="cara-kerja" className="py-16 sm:py-20">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center max-w-2xl mx-auto">
+            <h2 className="text-3xl font-bold text-slate-800">
+              Sangat Mudah, Hanya 3 Langkah
+            </h2>
+            <p className="mt-3 text-slate-600">
+              DWEP mempermudah Anda menabung sampah.
+            </p>
+          </div>
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100 text-center">
+              <div className="bg-teal-100 h-20 w-20 mx-auto rounded-full flex items-center justify-center">
+                <Recycle className="h-12 w-12 text-teal-600" />
               </div>
-
-              {/* Content */}
-              <div className="p-6 space-y-6">
-                {/* Header + Welcome */}
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800">
-                      Dashboard Nasabah
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      Selamat datang kembali,{" "}
-                      <span className="font-medium">Nasabah</span>
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500">Saldo Saat Ini</p>
-                    <p className="text-3xl font-bold text-green-600">
-                      Rp 2.450.000
-                    </p>
-                    <span className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-medium">
-                      +Rp 320.000 hari ini
-                    </span>
-                  </div>
-                </div>
-
-                {/* Metric Cards */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-gray-500">Total Setoran</p>
-                        <p className="text-2xl font-bold text-gray-800">42</p>
-                      </div>
-                      <Package className="w-8 h-8 text-green-600 opacity-70" />
-                    </div>
-                    <p className="text-lg font-semibold text-green-700 mt-2">
-                      185 kg
-                    </p>
-                  </div>
-
-                  <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-gray-500">Community</p>
-                        <p className="text-2xl font-bold text-gray-800">8</p>
-                      </div>
-                      <UsersRound className="w-8 h-8 text-green-600 opacity-70" />
-                    </div>
-                    <p className="text-xs text-gray-600 mt-2">Jenis Setoran</p>
-                  </div>
-
-                  <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-gray-500">Ocean Debris</p>
-                        <p className="text-2xl font-bold text-gray-800">34</p>
-                      </div>
-                      <Waves className="w-8 h-8 text-green-600 opacity-70" />
-                    </div>
-                    <p className="text-xs text-gray-600 mt-2">Jenis Setoran</p>
-                  </div>
-                </div>
-
-                {/* Mini Area Chart */}
-                <div className="bg-green-50 rounded-2xl p-4 border border-green-100">
-                  <p className="text-sm font-medium text-gray-700 mb-3">
-                    Tren Setoran 6 Bulan Terakhir
-                  </p>
-                  <svg viewBox="0 0 300 80" className="w-full h-20">
-                    <defs>
-                      <linearGradient
-                        id="gradient-green"
-                        x1="0%"
-                        y1="0%"
-                        x2="0%"
-                        y2="100%"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="#16a34a"
-                          stopOpacity="0.6"
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="#16a34a"
-                          stopOpacity="0"
-                        />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d="M0,60 Q50,40 75,30 Q100,20 150,35 Q200,50 250,25 Q300,10 300,60 L300,80 L0,80 Z"
-                      fill="url(#gradient-green)"
-                    />
-                    <path
-                      d="M0,60 Q50,40 75,30 Q100,20 150,35 Q200,50 250,25 Q300,10 300,60"
-                      fill="none"
-                      stroke="#16a34a"
-                      strokeWidth="3"
-                      className="drop-shadow-sm"
-                    />
-                  </svg>
-                </div>
-
-                {/* Recent Activity */}
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-gray-700">
-                    Aktivitas Terbaru
-                  </p>
-                  {[
-                    {
-                      text: "Setoran Plastik PET 15 kg",
-                      amount: "+Rp 320.000",
-                      color: "text-emerald-600",
-                    },
-                    {
-                      text: "Setor Kardus 28 kg",
-                      amount: "+Rp 185.000",
-                      color: "text-emerald-600",
-                    },
-                    {
-                      text: "Harga Botol Plastik naik → Rp 2.500/kg",
-                      amount: "",
-                      color: "text-amber-600",
-                    },
-                  ].map((item, i) => (
-                    <div
-                      key={i}
-                      className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                        <span className="text-sm text-gray-600">
-                          {item.text}
-                        </span>
-                      </div>
-                      {item.amount && (
-                        <span className={`text-sm font-semibold ${item.color}`}>
-                          {item.amount}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* CTA Button */}
-                <Link
-                  href="auth/login"
-                  className="group relative w-full block"
-                >
-                  <div className="w-full py-3.5 bg-gradient-to-r from-green-600 to-green-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-green-500/40 transform hover:-translate-y-0.5 transition-all duration-300 text-center">
-                    <Sparkles className="w-5 h-5 inline-block" /> Masuk ke
-                    Dashboard
-                  </div>
-                </Link>
+              <h3 className="mt-6 text-xl font-bold">1. Pilah Sampah</h3>
+              <p className="mt-2 text-slate-500">
+                Pisahkan sampah sesuai kategori.
+              </p>
+            </div>
+            <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 text-center transform md:scale-105">
+              <div className="bg-orange-100 h-20 w-20 mx-auto rounded-full flex items-center justify-center">
+                <Scale className="h-12 w-12 text-orange-600" />
               </div>
+              <h3 className="mt-6 text-xl font-bold">2. Setor & Timbang</h3>
+              <p className="mt-2 text-slate-500">
+                Bawa sampah ke Bank Sampah terdekat.
+              </p>
+            </div>
+            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100 text-center">
+              <div className="bg-sky-100 h-20 w-20 mx-auto rounded-full flex items-center justify-center">
+                <Wallet className="h-12 w-12 text-sky-600" />
+              </div>
+              <h3 className="mt-6 text-xl font-bold">3. Dapatkan Saldo</h3>
+              <p className="mt-2 text-slate-500">
+                Otomatis menambah saldo tabungan digital Anda.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-6 text-center text-xs text-[var(--muted)] border-t border-[var(--border)] mt-auto">
-        © {new Date().getFullYear()} Bank Sampah Anambas. All rights reserved.
+      {/* ===== PREMIUM MARQUEE ===== */}
+      <div className="w-full py-10 bg-slate-50">
+        <Marquee speed={25} gradient={true}>
+          <div className="flex items-center gap-32">
+            <Image
+              src="/logos/parongpong.png"
+              alt="Parongpong"
+              width={180}
+              height={180}
+              className="grayscale opacity-80"
+            />
+            <Image
+              src="/logos/anambas.png"
+              alt="Anambas Foundation"
+              width={180}
+              height={180}
+              className="grayscale opacity-80"
+            />
+            <Image
+              src="/logos/parongpong.png"
+              alt="Parongpong"
+              width={180}
+              height={180}
+              className="grayscale opacity-80"
+            />
+            <Image
+              src="/logos/anambas.png"
+              alt="Anambas Foundation"
+              width={180}
+              height={180}
+              className="grayscale opacity-80"
+            />
+          </div>
+        </Marquee>
+      </div>
+
+      {/* ===== MANFAAT (Single Image) ===== */}
+      <section id="manfaat" className="py-20 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          <div className="relative w-full h-80 sm:h-96 rounded-2xl shadow-xl overflow-hidden">
+            <Image
+              src="/anambas-bg1.jpg"
+              alt="Manfaat DWEP"
+              fill
+              className="object-cover"
+            />
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold text-slate-800">
+              Dua Manfaat Sekaligus
+            </h2>
+            <p className="mt-4 text-slate-600 mb-6">
+              Keuntungan ekonomi dan kelestarian lingkungan Anambas.
+            </p>
+            <ul className="space-y-6">
+              <li className="flex items-start gap-4">
+                <div className="bg-teal-100 p-2 rounded-full">
+                  <CheckCircle className="w-6 h-6 text-teal-600" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-lg">Keuntungan Ekonomi</h4>
+                  <p className="text-slate-500">
+                    Saldo dapat ditarik kapan pun.
+                  </p>
+                </div>
+              </li>
+              <li className="flex items-start gap-4">
+                <div className="bg-teal-100 p-2 rounded-full">
+                  <CheckCircle className="w-6 h-6 text-teal-600" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-lg">Menjaga Lingkungan</h4>
+                  <p className="text-slate-500">
+                    Mengurangi sampah di laut dan pesisir.
+                  </p>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== FOOTER ===== */}
+      <footer className="bg-slate-800 text-white pt-20 pb-12">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div>
+            <h1 className="text-xl font-extrabold mb-4">Bank Sampah Anambas</h1>
+            <p className="text-slate-400 text-sm">
+              Gerakan bersama untuk Anambas yang lebih bersih.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-bold text-lg mb-4">Navigasi</h4>
+            <ul className="space-y-3 text-slate-300 text-sm">
+              <li>
+                <Link href="#cara-kerja" className="hover:text-teal-400">
+                  Cara Kerja
+                </Link>
+              </li>
+              <li>
+                <Link href="#manfaat" className="hover:text-teal-400">
+                  Manfaat
+                </Link>
+              </li>
+              <li>
+                <Link href="/auth/login" className="hover:text-teal-400">
+                  Login
+                </Link>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-bold text-lg mb-4">Kontak</h4>
+            <p className="text-slate-300 text-sm">Kuala Maras, Anambas</p>
+          </div>
+          <div>
+            <h4 className="font-bold text-lg mb-4">Ikuti Kami</h4>
+            <a
+              href="https://www.instagram.com/anambasorg"
+              className="text-slate-300 hover:text-white"
+            >
+              <Instagram className="w-6 h-6" />
+            </a>
+          </div>
+        </div>
+        <div className="mt-10 border-t border-slate-700 pt-6 text-center text-slate-400 text-sm">
+          © 2026 Parongpong x Anambas Foundation
+        </div>
       </footer>
-    </main>
+    </div>
   );
 }

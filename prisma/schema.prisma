@@ -112,6 +112,7 @@ model DetailPlastik {
 
 model TransaksiSetor {
   id_setor             String       @id @db.VarChar(20)
+  group_id             String?  
   nasabah_id           Int
   petugas_id           Int
   tipe_setoran         TipeSetoran

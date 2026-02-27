@@ -8,6 +8,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  ArrowDownCircle,
+  ArrowUpCircle,
   Eye,
 } from "lucide-react";
 import TambahNasabahModal from "@/components/TambahNasabahModal";
@@ -244,7 +246,7 @@ export default function DaftarNasabahPage() {
                         Saldo
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
-                        Status
+                        Transaksi
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
                         Aksi
@@ -282,12 +284,46 @@ export default function DaftarNasabahPage() {
                           {formatRupiah(n.total_saldo)}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => router.push(`/dashboard/petugas/detail-nasabah/${n.id_user}`)}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-                          >
-                            Detail
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            {/* Tombol Setor */}
+                            <button
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/petugas/daftar-nasabah/${n.id_user}/setor`,
+                                )
+                              }
+                              className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                              title="Setor Saldo"
+                            >
+                              <ArrowDownCircle className="w-5 h-5" />
+                            </button>
+
+                            {/* Tombol Tarik */}
+                            <button
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/petugas/daftar-nasabah/${n.id_user}/tarik`,
+                                )
+                              }
+                              className="p-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors"
+                              title="Tarik Saldo"
+                            >
+                              <ArrowUpCircle className="w-5 h-5" />
+                            </button>
+
+                            {/* Tombol Detail */}
+                            <button
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/petugas/detail-nasabah/${n.id_user}`,
+                                )
+                              }
+                              className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                              title="Lihat Detail"
+                            >
+                              <Eye className="w-5 h-5" />
+                            </button>
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">

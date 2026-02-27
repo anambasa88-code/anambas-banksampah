@@ -3,19 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
-import {
-  LayoutDashboard,
-  History,
-  Users,
-  Package,
-  DollarSign,
-  LogOut,
-  X,
-  Recycle,
-  Building2,
-  UserCog,
-  TrendingUp,
-} from "lucide-react";
+import { LayoutDashboard, History, Users, Wallet, LogOut, X, Recycle, Building2, } from "lucide-react";
 
 export default function Sidebar({ isMobile = false, isOpen = false, onClose }) {
   const pathname = usePathname();
@@ -116,19 +104,9 @@ export default function Sidebar({ isMobile = false, isOpen = false, onClose }) {
           href: "/dashboard/petugas/daftar-nasabah",
         },
         {
-          icon: TrendingUp,
+          icon:  Wallet,
           label: "Harga Lokal",
           href: "/dashboard/petugas/harga-lokal",
-        },
-        {
-          icon: Package,
-          label: "Input Setor",
-          href: "/dashboard/petugas/input-setor",
-        },
-        {
-          icon: DollarSign,
-          label: "Input Tarik",
-          href: "/dashboard/petugas/input-tarik",
         },
         {
           icon: History,

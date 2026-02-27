@@ -4,105 +4,97 @@ import { logService } from "./logService";
 import { validateHarga } from "./masterSampahService";
 
 export const transactionService = {
-  async createSetoran(data, actorRole, actorId, actorBankSampahId) {
-    const {
-      nasabah_id,
-      petugas_id,
-      barang_id,
-      berat,
-      tipe_harga = "SISTEM",
-      harga_manual = 0,
-      catatan_petugas = "",
-      tipe_setoran = "COMMUNITY",
-      metode_bayar = "TABUNG",
-    } = data;
+ async createSetoranBulk(dataBulk, actorRole, actorId, actorBankSampahId) {
+  const { nasabah_id, items, metode_bayar = "TABUNG", catatan_petugas = "" } = dataBulk;
 
-    // 1. Validasi Nasabah
-    const nasabah = await prisma.user.findUnique({
-      where: { id_user: nasabah_id },
-      select: { bank_sampah_id: true, peran: true, is_blocked: true },
-    });
+  // 1. Validasi Dasar Nasabah
+  const nasabah = await prisma.user.findUnique({
+    where: { id_user: nasabah_id },
+    select: { bank_sampah_id: true, peran: true, is_blocked: true },
+  });
 
-    if (!nasabah || nasabah.peran !== "NASABAH")
-      throw new Error("Nasabah tidak valid");
-    if (nasabah.is_blocked) throw new Error("Nasabah sedang diblokir");
-    if (
-      actorRole === "PETUGAS" &&
-      nasabah.bank_sampah_id !== actorBankSampahId
-    ) {
-      throw new Error(
-        "Petugas hanya boleh setor untuk nasabah di unit sendiri",
-      );
-    }
+  if (!nasabah || nasabah.peran !== "NASABAH") throw new Error("Nasabah tidak valid");
+  if (nasabah.is_blocked) throw new Error("Nasabah sedang diblokir");
+  if (actorRole === "PETUGAS" && nasabah.bank_sampah_id !== actorBankSampahId) {
+    throw new Error("Akses ditolak: Nasabah di luar unit kerja Anda");
+  }
+  if (!items || items.length === 0) throw new Error("Tidak ada item sampah untuk disetor");
 
-    // 2. LOGIKA PENENTUAN HARGA & PAGAR KEAMANAN
-    const barang = await prisma.masterSampah.findUnique({
-      where: { id_barang: barang_id },
-    });
-    if (!barang) throw new Error("Jenis sampah tidak ditemukan");
+  // 2. Generate Group ID Unik untuk Sesi Ini
+  const groupId = `GRP-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
-    let hargaFinal = 0;
+  return await prisma.$transaction(async (tx) => {
+    let grandTotalRp = 0;
+    const createdTransactions = [];
 
-    if (tipe_harga === "SISTEM") {
-      hargaFinal = Number(barang.harga_pusat);
-    } else if (tipe_harga === "LOKAL") {
-      hargaFinal = Number(barang.harga_lokal || barang.harga_pusat);
-    } else if (tipe_harga === "CUSTOM") {
-      const customVal = Number(harga_manual);
+    for (const item of items) {
+      // Ambil data master sampah
+      const barang = await tx.masterSampah.findUnique({
+        where: { id_barang: item.barang_id },
+      });
 
-      // VALIDASI PAGAR HARGA
-      if (
-        customVal < Number(barang.batas_bawah) ||
-        customVal > Number(barang.batas_atas)
-      ) {
-        throw new Error(
-          `Harga custom Rp${customVal.toLocaleString()} diluar batas! (Min: Rp${Number(barang.batas_bawah).toLocaleString()}, Max: Rp${Number(barang.batas_atas).toLocaleString()})`,
-        );
+      if (!barang) throw new Error(`Barang ID ${item.barang_id} tidak ditemukan`);
+
+      // Kalkulasi Harga Final
+      let hargaFinal = 0;
+      if (item.tipe_harga === "SISTEM") {
+        hargaFinal = Number(barang.harga_pusat);
+      } else if (item.tipe_harga === "LOKAL") {
+        hargaFinal = Number(item.harga_lokal || barang.harga_pusat);
+      } else if (item.tipe_harga === "CUSTOM") {
+        const customVal = Number(item.harga_manual);
+        if (customVal < Number(barang.batas_bawah) || customVal > Number(barang.batas_atas)) {
+          throw new Error(`Harga ${barang.nama_barang} (Rp${customVal}) melampaui batas resmi!`);
+        }
+        hargaFinal = customVal;
       }
-      hargaFinal = customVal;
-    }
 
-    const total_rp = hargaFinal * Number(berat);
+      const total_item_rp = hargaFinal * Number(item.berat);
+      grandTotalRp += total_item_rp;
 
-    // Generate ID Setor
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const randomId = Math.floor(1000 + Math.random() * 9000);
-    const id_setor = `STR-${dateStr}-${randomId}`;
-
-    return await prisma.$transaction(async (tx) => {
-    
+      // ID Setor Per Item
+      const id_setor = `STR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`;
 
       const transaksi = await tx.transaksiSetor.create({
         data: {
           id_setor,
+          group_id: groupId, // Link ke grup yang sama
           nasabah_id,
-          petugas_id,
-          barang_id,
+          petugas_id: actorId,
+          barang_id: item.barang_id,
           nama_barang_snapshot: barang.nama_barang,
-          berat: Number(berat),
+          berat: Number(item.berat),
           harga_deal: hargaFinal,
-          total_rp,
-          tipe_setoran,
+          total_rp: total_item_rp,
+          tipe_setoran: item.tipe_setoran, // Sesuai pilihan: COMMUNITY / OCEAN_DEBRIS
           metode_bayar,
-          catatan_petugas,
+          catatan_petugas: catatan_petugas,
         },
       });
+      createdTransactions.push(transaksi);
+    }
 
-     
-      // Update Saldo Nasabah - HANYA jika metode TABUNG
-      if (metode_bayar === "TABUNG") {
-        console.log("✅ UPDATE SALDO +", total_rp);
-        await tx.user.update({
-          where: { id_user: nasabah_id },
-          data: { total_saldo: { increment: total_rp } },
-        });
-      } else {
-        console.log("❌ SKIP UPDATE SALDO (JUAL_LANGSUNG)");
-      }
+    // 3. Update Saldo (Hanya jika TABUNG)
+    if (metode_bayar === "TABUNG" && grandTotalRp > 0) {
+      await tx.user.update({
+        where: { id_user: nasabah_id },
+        data: { total_saldo: { increment: grandTotalRp } },
+      });
+    }
 
-      return transaksi;
-    });
-  },
+    // Log Aktivitas
+    await logService.record(actorId, "SETOR_SAMPAH_BULK", 
+      `Setoran multi-item (Group: ${groupId}) nasabah ${nasabah_id}, Total: Rp${grandTotalRp}`, 
+      { nasabah_id, group_id: groupId, items_count: items.length }
+    );
+
+    return { 
+      group_id: groupId, 
+      total_rp: grandTotalRp, 
+      transactions: createdTransactions 
+    };
+  });
+},
 
   async createPenarikan(data, actorRole, actorId, actorBankSampahId) {
     const { nasabah_id, petugas_id, jumlah_tarik, catatan_tarik = "" } = data;

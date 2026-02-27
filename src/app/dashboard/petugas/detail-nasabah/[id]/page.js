@@ -19,7 +19,7 @@ import {
   Banknote,
   User,
   MapPin,
-  FileSpreadsheet, 
+  FileSpreadsheet,
   FileText,
   ArrowLeft,
 } from "lucide-react";
@@ -106,11 +106,12 @@ export default function DetailNasabahPage() {
   }, [filter, page, nasabahId]);
 
   const formatRupiah = (num) => {
+    const value = Number(num) || 0;
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
-    }).format(num);
+    }).format(value);
   };
 
   const formatDate = (dateString) => {
@@ -134,6 +135,35 @@ export default function DetailNasabahPage() {
   const totalNilaiTarik = data
     .filter((d) => d.jenis === "TARIK")
     .reduce((sum, d) => sum + (Number(d.jumlah) || 0), 0);
+
+  // Letakkan di atas return JSX
+  const groupedData = data.reduce((acc, item) => {
+    // Jika tidak ada group_id, gunakan ID setor/tarik agar tidak digabung jadi satu
+    const key =
+      item.group_id ||
+      (item.jenis === "SETOR" ? item.id_setor : item.id_tarik) ||
+      `old-${Math.random()}`;
+
+    if (!acc[key]) {
+      acc[key] = {
+        ...item,
+        subItems: [],
+        totalGroupRp: 0,
+      };
+    }
+
+    acc[key].subItems.push(item);
+    acc[key].totalGroupRp += Number(
+      item.total_rp ||
+        item.jumlah ||
+        Number(item.berat) * Number(item.harga_per_kg) ||
+        0,
+    );
+
+    return acc;
+  }, {});
+
+  const finalDisplayData = Object.values(groupedData);
 
   return (
     <DashboardLayout>
@@ -336,9 +366,9 @@ export default function DetailNasabahPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                  {data.map((item, index) => (
+                  {finalDisplayData.map((item, index) => (
                     <tr
-                      key={`${item.jenis}-${item.id}-${index}`}
+                      key={`${item.group_id || item.id_setor || item.id_tarik}-${index}`}
                       className="hover:bg-gray-50 dark:hover:bg-slate-800/50"
                     >
                       <td className="px-4 py-4">
@@ -349,100 +379,83 @@ export default function DetailNasabahPage() {
                       </td>
 
                       <td className="px-4 py-4">
-                        {item.jenis === "SETOR" ? (
-                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 w-fit">
+                        <div
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg w-fit ${
+                            item.jenis === "SETOR"
+                              ? "bg-green-50 text-green-700"
+                              : "bg-orange-50 text-orange-700"
+                          }`}
+                        >
+                          {item.jenis === "SETOR" ? (
                             <ArrowUpRight className="w-4 h-4" />
-                            <span className="text-sm font-semibold">SETOR</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 w-fit">
+                          ) : (
                             <ArrowDownRight className="w-4 h-4" />
-                            <span className="text-sm font-semibold">TARIK</span>
-                          </div>
-                        )}
+                          )}
+                          <span className="text-sm font-semibold">
+                            {item.jenis}
+                          </span>
+                        </div>
                       </td>
 
                       <td className="px-4 py-4">
                         {item.jenis === "SETOR" ? (
-                          <div>
-                            <p className="text-sm font-semibold text-gray-800 dark:text-white">
-                              {item.barang?.nama || "-"}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {item.berat || 0} kg ×{" "}
-                                {formatRupiah(item.harga_per_kg || 0)}/kg
-                              </span>
-                              {item.barang?.tipe && (
-                                <span
-                                  className={`
-                                  text-xs px-2 py-0.5 rounded
-                                  ${
-                                    item.barang.tipe === "COMMUNITY"
-                                      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                                      : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                                  }
-                                `}
-                                >
-                                  {item.barang.tipe}
-                                </span>
-                              )}
-                              {item.metode_bayar && (
-                                <span
-                                  className={`
-                                  text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1
-                                  ${
-                                    item.metode_bayar === "TABUNG"
-                                      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                                      : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400"
-                                  }
-                                `}
-                                >
-                                  {item.metode_bayar === "TABUNG" ? (
-                                    <>
-                                      <Wallet className="w-3 h-3" />
-                                      TABUNG
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Banknote className="w-3 h-3" />
-                                      JUAL LANGSUNG
-                                    </>
+                          <div className="space-y-2">
+                            {item.subItems.map((sub, i) => (
+                              <div
+                                key={i}
+                                className="border-l-2 border-emerald-500 pl-2"
+                              >
+                                <p className="text-sm font-bold text-gray-800 dark:text-white uppercase">
+                                  {sub.nama_barang_snapshot ||
+                                    sub.barang?.nama_barang ||
+                                    "Sampah"}
+                                </p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[10px] text-gray-500 font-bold">
+                                    {Number(sub.berat) || 0} kg ×{" "}
+                                    {formatRupiah(
+                                      sub.harga_deal || sub.harga_per_kg,
+                                    )}
+                                  </span>
+                                  {sub.tipe_setoran && (
+                                    <span
+                                      className={`text-[9px] px-1.5 rounded font-black ${
+                                        sub.tipe_setoran === "COMMUNITY"
+                                          ? "bg-emerald-100 text-emerald-600"
+                                          : "bg-blue-100 text-blue-600"
+                                      }`}
+                                    >
+                                      {sub.tipe_setoran === "COMMUNITY"
+                                        ? "COMM"
+                                        : "OCEAN"}
+                                    </span>
                                   )}
-                                </span>
-                              )}
-                            </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Penarikan saldo
+                          <p className="text-sm text-gray-600 font-medium">
+                            Penarikan Saldo
                           </p>
                         )}
                       </td>
-                      <td className="px-4 py-4">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 ">
-                          {/* Jika SETOR pakai catatan_petugas, jika TARIK pakai catatan_tarik */}
-                          {item.jenis === "SETOR"
-                            ? item.catatan_petugas || "-"
-                            : item.catatan_tarik || "-"}
-                        </p>
+
+                      <td className="px-4 py-4 text-sm text-gray-500">
+                        {item.catatan_petugas || item.catatan_tarik || "-"}
                       </td>
 
                       <td className="px-4 py-4 text-right">
                         <p
-                          className={`
-                          text-base font-bold
-                          ${
-                            item.jenis === "SETOR"
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-orange-600 dark:text-orange-400"
-                          }
-                        `}
+                          className={`text-base font-black ${item.jenis === "SETOR" ? "text-emerald-600" : "text-orange-600"}`}
                         >
-                          {item.jenis === "SETOR"
-                            ? formatRupiah(item.total_rp || 0)
-                            : formatRupiah(item.jumlah || 0)}
+                          {formatRupiah(item.totalGroupRp)}
                         </p>
+                        {item.subItems.length > 1 && (
+                          <p className="text-[9px] text-gray-400 font-bold uppercase">
+                            {item.subItems.length} Jenis Sampah
+                          </p>
+                        )}
                       </td>
                     </tr>
                   ))}
