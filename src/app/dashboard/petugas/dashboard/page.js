@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState,useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
@@ -19,7 +19,7 @@ import {
   CircleDollarSign,
   CalendarDays,
   Search,
-  FileSpreadsheet, 
+  FileSpreadsheet,
   FileText,
 } from "lucide-react";
 import ExportDashboardPetugas from "@/components/ExportDashboardPetugas";
@@ -433,16 +433,16 @@ export default function PetugasDashboard() {
                     filterMode === "month" ? handleMonthSearch : fetchDashboard
                   }
                   disabled={loading || isDateInvalid}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-md ${
+                  className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 shadow-sm border ${
                     isDateInvalid
-                      ? "bg-red-50 text-red-500 cursor-not-allowed border border-red-200"
-                      : "bg-slate-800 dark:bg-emerald-600 text-white hover:bg-black dark:hover:bg-emerald-500"
-                  }`}
+                      ? "bg-red-50 text-red-600 border-red-200 cursor-not-allowed"
+                      : "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700"
+                  } disabled:opacity-50`}
                 >
                   {loading ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Search className="w-4 h-4" strokeWidth={3} />
+                    <Search className="w-4 h-4" />
                   )}
                   <span>{isDateInvalid ? "Range Error!" : "Cari Data"}</span>
                 </button>
@@ -603,16 +603,17 @@ export default function PetugasDashboard() {
           </div>
 
           {/* Perputaran Uang */}
+          {/* Perputaran Uang */}
           <div className="p-6 rounded-2xl border border-gray-200 shadow-sm bg-white dark:bg-slate-900 dark:border-slate-700">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                <CircleDollarSign className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              <div className="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
+                <CircleDollarSign className="w-6 h-6 text-violet-600 dark:text-violet-400" />
               </div>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
               Perputaran Uang
             </p>
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+            <p className="text-2xl font-bold text-violet-600 dark:text-violet-400">
               {formatRupiah(total_rp || 0)}
             </p>
 
@@ -649,40 +650,52 @@ export default function PetugasDashboard() {
                 </div>
               </div>
 
-              {/* Saldo Tabungan */}
+              {/* Saldo Tabungan - dipromosikan */}
               <div className="pt-3 border-t border-gray-100 dark:border-slate-800">
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Saldo Tabungan Nasabah
                 </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center px-2 py-1 rounded-lg bg-green-50 dark:bg-green-900/20 text-xs">
+                    <span className="flex items-center gap-1 text-green-700 dark:text-green-400">
                       <ArrowUpRight className="w-3 h-3" />
                       Uang Masuk
                     </span>
-                    <span className="font-semibold text-green-600 dark:text-green-400">
+                    <span className="font-bold text-green-700 dark:text-green-400">
                       {formatRupiah(
                         data.perputaran_uang_per_metode?.TABUNG || 0,
                       )}
                     </span>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                  <div className="flex justify-between items-center px-2 py-1 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-xs">
+                    <span className="flex items-center gap-1 text-orange-600 dark:text-orange-400">
                       <ArrowDownRight className="w-3 h-3" />
                       Uang Keluar
                     </span>
-                    <span className="font-semibold text-orange-600 dark:text-orange-400">
+                    <span className="font-bold text-orange-600 dark:text-orange-400">
                       {formatRupiah(data.total_penarikan_rp || 0)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-xs pt-2 border-t border-gray-100 dark:border-slate-800">
-                    <span className="font-medium text-gray-700 dark:text-gray-300">
-                      Saldo Aktif
-                    </span>
-                    <span className="font-bold text-green-600 dark:text-green-400">
-                      {formatRupiah(data.saldo_aktif || 0)}
-                    </span>
-                  </div>
+                </div>
+
+                {/* Pembatas */}
+                <div className="flex items-center gap-2 my-1">
+                  <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                    Saldo Aktif Nasabah
+                  </span>
+                  <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
+                </div>
+                {/* Saldo Aktif dipromosikan */}
+
+                <div className="mt-1 flex justify-between items-center px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-xs border border-emerald-300 dark:border-emerald-700">
+                  <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-bold">
+                    <Wallet className="w-3 h-3" />
+                    Saldo Aktif
+                  </span>
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                    {formatRupiah(data.saldo_aktif || 0)}
+                  </span>
                 </div>
               </div>
             </div>

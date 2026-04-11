@@ -201,19 +201,14 @@ export default function TransaksiPage() {
 
   const totalPages = Math.ceil(pagination.total / pagination.limit);
 
-  // LOGIKA GROUPING TRANSAKSI
-  const groupedTransactions = transaksi.reduce((acc, item) => {
-    const key =
-      item.group_id || (item.jenis === "SETOR" ? item.id_setor : item.id_tarik);
-    if (!acc[key]) {
-      acc[key] = { ...item, subItems: [], totalGroupRp: 0 };
-    }
-    acc[key].subItems.push(item);
-    acc[key].totalGroupRp += Number(item.total_rp || item.jumlah_tarik || 0);
-    return acc;
-  }, {});
-
-  const finalDisplayData = Object.values(groupedTransactions);
+  const finalDisplayData = transaksi.map((item) => ({
+    ...item,
+    subItems: item.jenis === "SETOR" ? item.detail_items || [] : [],
+    totalGroupRp:
+      item.jenis === "SETOR"
+        ? Number(item.total_rp)
+        : Number(item.jumlah_tarik),
+  }));
 
   return (
     <DashboardLayout>
@@ -346,6 +341,9 @@ export default function TransaksiPage() {
                         ID Group/Setor
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-tighter">
+                        Setor/Tarik
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-tighter">
                         Tipe
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-tighter">
@@ -389,6 +387,24 @@ export default function TransaksiPage() {
                           )}
                         </td>
                         <td className="px-4 py-4">
+                          {t.jenis === "SETOR" ? (
+                            t.metode_bayar === "TABUNG" ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase bg-blue-50 text-blue-600 border border-blue-100">
+                                <Wallet className="w-3 h-3" /> Tabung
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase bg-yellow-50 text-yellow-600 border border-yellow-100">
+                                <TrendingDown className="w-3 h-3" /> Jual
+                                Langsung
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-bold uppercase">
+                              —
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4">
                           <p className="text-sm font-bold text-slate-700 dark:text-white">
                             {t.nasabah.nama_lengkap}
                           </p>
@@ -425,7 +441,13 @@ export default function TransaksiPage() {
                         </td>
                         <td className="px-4 py-4 text-right">
                           <p
-                            className={`text-base font-black italic ${t.jenis === "SETOR" ? "text-emerald-600" : "text-orange-600"}`}
+                            className={`text-base font-black italic ${
+                              t.jenis === "TARIK"
+                                ? "text-red-600"
+                                : t.metode_bayar === "TABUNG"
+                                  ? "text-emerald-600"
+                                  : "text-slate-500"
+                            }`}
                           >
                             {t.jenis === "SETOR" ? "+" : "-"}
                             {formatRupiah(t.totalGroupRp)}

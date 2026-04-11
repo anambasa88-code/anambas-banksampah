@@ -66,7 +66,7 @@ model MasterSampah {
   detail_plastik   DetailPlastik?
   harga_lokal_unit HargaLokalUnit[]
   history_harga    HistoryHarga[]
-  transaksi_setor  TransaksiSetor[]
+  detail_setor     DetailSetor[]    // ← hanya ini yang tersisa
 
   @@index([kategori_utama])
   @@index([is_active])
@@ -111,27 +111,37 @@ model DetailPlastik {
 }
 
 model TransaksiSetor {
-  id_setor             String       @id @db.VarChar(20)
-  group_id             String?  
-  nasabah_id           Int
-  petugas_id           Int
-  tipe_setoran         TipeSetoran
-  metode_bayar         MetodeBayar  @default(TABUNG)
-  barang_id            Int
-  nama_barang_snapshot String       @db.VarChar(100)
-  berat                Decimal      @db.Decimal(10, 2)
-  harga_deal           Decimal      @db.Decimal(15, 2)
-  total_rp             Decimal      @db.Decimal(15, 2)
-  catatan_petugas      String
-  waktu                DateTime     @default(now())
-  barang               MasterSampah @relation(fields: [barang_id], references: [id_barang])
-  nasabah              User         @relation("SetorNasabah", fields: [nasabah_id], references: [id_user])
-  petugas              User         @relation("SetorPetugas", fields: [petugas_id], references: [id_user])
+  id_setor        String        @id @db.VarChar(30)
+  nasabah_id      Int
+  petugas_id      Int
+  tipe_setoran    TipeSetoran
+  metode_bayar    MetodeBayar   @default(TABUNG)
+  total_rp        Decimal       @db.Decimal(15, 2)
+  catatan_petugas String
+  waktu           DateTime      @default(now())
+  nasabah         User          @relation("SetorNasabah", fields: [nasabah_id], references: [id_user])
+  petugas         User          @relation("SetorPetugas", fields: [petugas_id], references: [id_user])
+  detail_items    DetailSetor[] // relasi ke detail
 
   @@index([nasabah_id])
   @@index([petugas_id])
   @@index([waktu])
   @@map("transaksi_setor")
+}
+
+model DetailSetor {
+  id                   Int         @id @default(autoincrement())
+  setor_id             String      @db.VarChar(30)
+  barang_id            Int
+  nama_barang_snapshot String      @db.VarChar(100)
+  berat                Decimal     @db.Decimal(10, 2)
+  harga_deal           Decimal     @db.Decimal(15, 2)
+  total_rp             Decimal     @db.Decimal(15, 2)
+  tipe_setoran         TipeSetoran // ← tambah ini
+  transaksi            TransaksiSetor @relation(fields: [setor_id], references: [id_setor])
+  barang               MasterSampah   @relation(fields: [barang_id], references: [id_barang])
+
+  @@map("detail_setor")
 }
 
 model TransaksiTarik {

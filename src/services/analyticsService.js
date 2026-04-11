@@ -6,18 +6,20 @@ export const analyticsService = {
   async getNasabahSummary(nasabahId, startDate = null, endDate = null) {
     const whereSetor = { nasabah_id: nasabahId };
     const whereTarik = { nasabah_id: nasabahId };
+    const whereDetail = { transaksi: { nasabah_id: nasabahId } };
 
     if (startDate || endDate) {
       const waktuFilter = {};
-      if (startDate) waktuFilter.gte = new Date(startDate);
+      if (startDate) waktuFilter.gte = new Date(`${startDate}T00:00:00.000Z`);
       if (endDate) waktuFilter.lte = new Date(`${endDate}T23:59:59.999Z`);
       whereSetor.waktu = waktuFilter;
       whereTarik.waktu = waktuFilter;
+      whereDetail.transaksi.waktu = waktuFilter;
     }
 
     const [
       tipeSummary,
-      totalSetor,
+      totalBerat,
       totalTabung,
       kategoriData,
       setorCount,
@@ -26,44 +28,45 @@ export const analyticsService = {
       metodeBayarRupiah,
       totalTarikRupiah,
     ] = await Promise.all([
-      // Per tipe setoran (semua)
-      prisma.transaksiSetor.groupBy({
+      // Per tipe → DetailSetor
+      prisma.detailSetor.groupBy({
         by: ["tipe_setoran"],
-        where: whereSetor,
+        where: whereDetail,
         _sum: { berat: true },
       }),
-      // Total setor (semua - untuk total kg)
-      prisma.transaksiSetor.aggregate({
-        where: whereSetor,
-        _sum: { berat: true, total_rp: true },
+      // Total berat → DetailSetor
+      prisma.detailSetor.aggregate({
+        where: whereDetail,
+        _sum: { berat: true },
       }),
-      // Total TABUNG aja (untuk saldo)
+      // Total TABUNG (rupiah) → TransaksiSetor
       prisma.transaksiSetor.aggregate({
         where: { ...whereSetor, metode_bayar: "TABUNG" },
         _sum: { total_rp: true },
       }),
-      // Per barang untuk kategori
-      prisma.transaksiSetor.groupBy({
+      // Per barang untuk kategori → DetailSetor
+      prisma.detailSetor.groupBy({
         by: ["barang_id"],
-        where: whereSetor,
+        where: whereDetail,
         _sum: { berat: true },
       }),
-      // Count transaksi
+      // Count transaksi setor
       prisma.transaksiSetor.count({ where: whereSetor }),
+      // Count transaksi tarik
       prisma.transaksiTarik.count({ where: whereTarik }),
-      // Breakdown metode bayar (jumlah transaksi)
+      // Metode bayar count → TransaksiSetor
       prisma.transaksiSetor.groupBy({
         by: ["metode_bayar"],
         where: whereSetor,
         _count: { id_setor: true },
       }),
-      // Breakdown metode bayar (rupiah)
+      // Metode bayar rupiah → TransaksiSetor
       prisma.transaksiSetor.groupBy({
         by: ["metode_bayar"],
         where: whereSetor,
         _sum: { total_rp: true },
       }),
-
+      // Total penarikan
       prisma.transaksiTarik.aggregate({
         where: whereTarik,
         _sum: { jumlah_tarik: true },
@@ -107,19 +110,20 @@ export const analyticsService = {
       return acc;
     }, {});
 
+    const tabungRp = Number(totalTabung._sum.total_rp || 0);
+    const tarikRp = Number(totalTarikRupiah._sum.jumlah_tarik || 0);
+
     return {
-      total_kg: Number(totalSetor._sum.berat || 0),
-      total_rp: Number(totalTabung._sum.total_rp || 0), // PERBAIKAN: Hanya TABUNG
+      total_kg: Number(totalBerat._sum.berat || 0),
+      total_rp: tabungRp,
       per_tipe: perTipe,
       per_kategori: perKategori,
       total_transaksi_setor: setorCount,
       total_transaksi_tarik: tarikCount,
       transaksi_metode_bayar: metodeBayar,
-      perputaran_uang_per_metode: metodeBayarRp, // Rupiah per metode (TABUNG, JUAL_LANGSUNG)
-      total_penarikan_rp: Number(totalTarikRupiah._sum.jumlah_tarik || 0),
-      saldo_aktif:
-        Number(totalTabung._sum.total_rp || 0) -
-        Number(totalTarikRupiah._sum.jumlah_tarik || 0),
+      perputaran_uang_per_metode: metodeBayarRp,
+      total_penarikan_rp: tarikRp,
+      saldo_aktif: tabungRp - tarikRp,
       periode: startDate || endDate ? { start: startDate, end: endDate } : null,
     };
   },
@@ -127,20 +131,34 @@ export const analyticsService = {
   async getPetugasUnitSummary(unitId, options = {}) {
     const { startDate, endDate } = options;
 
-    // Menyiapkan filter tanggal jika ada input dari frontend
     const dateFilter = {};
     if (startDate || endDate) {
       dateFilter.waktu = {};
-      if (startDate) {
+      if (startDate)
         dateFilter.waktu.gte = new Date(`${startDate}T00:00:00.000Z`);
-      }
-      if (endDate) {
-        dateFilter.waktu.lte = new Date(`${endDate}T23:59:59.999Z`);
-      }
+      if (endDate) dateFilter.waktu.lte = new Date(`${endDate}T23:59:59.999Z`);
     }
+
+    const detailWhere = {
+      transaksi: {
+        nasabah: { bank_sampah_id: unitId },
+        ...dateFilter,
+      },
+    };
+
+    const setorWhere = {
+      nasabah: { bank_sampah_id: unitId },
+      ...dateFilter,
+    };
+
+    const tarikWhere = {
+      nasabah: { bank_sampah_id: unitId },
+      ...dateFilter,
+    };
 
     const [
       tipeSummary,
+      totalBerat,
       totalSetor,
       kategoriData,
       nasabahCount,
@@ -153,97 +171,69 @@ export const analyticsService = {
       totalTabungOnly,
       sampahTerkumpul,
     ] = await Promise.all([
-      // per tipe setoran (berat)
-      prisma.transaksiSetor.groupBy({
+      // tipe_setoran → detailSetor
+      prisma.detailSetor.groupBy({
         by: ["tipe_setoran"],
-        where: {
-          nasabah: { bank_sampah_id: unitId },
-          ...dateFilter,
-        },
+        where: detailWhere,
         _sum: { berat: true },
       }),
-      // total setor
+      // total berat → detailSetor
+      prisma.detailSetor.aggregate({
+        where: detailWhere,
+        _sum: { berat: true },
+      }),
+      // total_rp → transaksiSetor (tetap di sini)
       prisma.transaksiSetor.aggregate({
-        where: {
-          nasabah: { bank_sampah_id: unitId },
-          ...dateFilter,
-        },
-        _sum: { berat: true, total_rp: true },
+        where: setorWhere,
+        _sum: { total_rp: true },
       }),
-      // per barang untuk kategori
-      prisma.transaksiSetor.groupBy({
+      // kategori per barang → detailSetor
+      prisma.detailSetor.groupBy({
         by: ["barang_id"],
-        where: {
-          nasabah: { bank_sampah_id: unitId },
-          ...dateFilter,
-        },
+        where: detailWhere,
         _sum: { berat: true },
       }),
-      // total nasabah unit (Total nasabah biasanya tidak difilter tanggal agar tahu akumulasi)
+      // nasabah count
       prisma.user.aggregate({
         where: { peran: "NASABAH", bank_sampah_id: unitId },
         _count: { id_user: true },
       }),
-      // gender nasabah unit
+      // gender
       prisma.user.groupBy({
         by: ["jenis_kelamin"],
         where: { peran: "NASABAH", bank_sampah_id: unitId },
         _count: { id_user: true },
       }),
       // jumlah transaksi setor
-      prisma.transaksiSetor.count({
-        where: {
-          nasabah: { bank_sampah_id: unitId },
-          ...dateFilter,
-        },
-      }),
+      prisma.transaksiSetor.count({ where: setorWhere }),
       // jumlah transaksi tarik
-      prisma.transaksiTarik.count({
-        where: {
-          nasabah: { bank_sampah_id: unitId },
-          ...dateFilter,
-        },
-      }),
-      // breakdown metode bayar setor (jumlah transaksi)
+      prisma.transaksiTarik.count({ where: tarikWhere }),
+      // metode bayar count
       prisma.transaksiSetor.groupBy({
         by: ["metode_bayar"],
-        where: {
-          nasabah: { bank_sampah_id: unitId },
-          ...dateFilter,
-        },
+        where: setorWhere,
         _count: { id_setor: true },
       }),
-      // breakdown metode bayar setor (rupiah)
+      // metode bayar rupiah
       prisma.transaksiSetor.groupBy({
         by: ["metode_bayar"],
-        where: {
-          nasabah: { bank_sampah_id: unitId },
-          ...dateFilter,
-        },
+        where: setorWhere,
         _sum: { total_rp: true },
       }),
-      // Total penarikan rupiah
+      // total penarikan
       prisma.transaksiTarik.aggregate({
-        where: {
-          nasabah: { bank_sampah_id: unitId },
-          ...dateFilter,
-        },
+        where: tarikWhere,
         _sum: { jumlah_tarik: true },
       }),
-      // Total tabung only
+      // tabung only
       prisma.transaksiSetor.aggregate({
-        where: {
-          nasabah: { bank_sampah_id: unitId },
-          metode_bayar: "TABUNG",
-          ...dateFilter,
-        },
+        where: { ...setorWhere, metode_bayar: "TABUNG" },
         _sum: { total_rp: true },
       }),
-      // Sampah terkumpul per jenis (Sudah mendukung filter tanggal di dalamnya)
+      // sampah terkumpul
       this.getSampahTerkumpulPerJenis(unitId, { startDate, endDate }),
     ]);
 
-    // Mapping kategori (sama seperti sebelumnya)
     const barangIds = [...new Set(kategoriData.map((item) => item.barang_id))];
     const barangs =
       barangIds.length > 0
@@ -292,7 +282,7 @@ export const analyticsService = {
     }, {});
 
     return {
-      total_kg: Number(totalSetor._sum.berat || 0),
+      total_kg: Number(totalBerat._sum.berat || 0),
       total_rp: Number(totalSetor._sum.total_rp || 0),
       per_tipe: perTipe,
       per_kategori: perKategori,
@@ -314,7 +304,6 @@ export const analyticsService = {
     try {
       const { startDate, endDate } = filters;
 
-      // 1. Setup Filter Tanggal Reusable
       const dateFilter = {};
       if (startDate) dateFilter.gte = new Date(`${startDate}T00:00:00.000Z`);
       if (endDate) dateFilter.lte = new Date(`${endDate}T23:59:59.999Z`);
@@ -322,9 +311,15 @@ export const analyticsService = {
       const hasDateFilter = startDate || endDate;
       const whereSetor = hasDateFilter ? { waktu: dateFilter } : {};
       const whereTarik = hasDateFilter ? { waktu: dateFilter } : {};
+      const whereDetail = hasDateFilter
+        ? { transaksi: { waktu: dateFilter } }
+        : {};
+
+      const formatWeight = (val) => Number(val || 0);
 
       const [
         globalTipe,
+        globalBerat,
         globalTotal,
         globalKategori,
         globalNasabah,
@@ -336,20 +331,28 @@ export const analyticsService = {
         globalTarikRupiah,
         globalTabungOnly,
         units,
-        globalSampahTerkumpul, // Data Baru
+        globalSampahTerkumpul,
       ] = await Promise.all([
-        prisma.transaksiSetor.groupBy({
+        // tipe_setoran → DetailSetor
+        prisma.detailSetor.groupBy({
           by: ["tipe_setoran"],
-          where: whereSetor,
+          where: whereDetail,
           _sum: { berat: true },
         }),
+        // total berat → DetailSetor
+        prisma.detailSetor.aggregate({
+          where: whereDetail,
+          _sum: { berat: true },
+        }),
+        // total_rp → TransaksiSetor
         prisma.transaksiSetor.aggregate({
           where: whereSetor,
-          _sum: { berat: true, total_rp: true },
+          _sum: { total_rp: true },
         }),
-        prisma.transaksiSetor.groupBy({
+        // kategori per barang → DetailSetor
+        prisma.detailSetor.groupBy({
           by: ["barang_id"],
-          where: whereSetor,
+          where: whereDetail,
           _sum: { berat: true },
         }),
         prisma.user.count({ where: { peran: "NASABAH" } }),
@@ -381,10 +384,9 @@ export const analyticsService = {
         prisma.unitBankSampah.findMany({
           select: { id_unit: true, nama_unit: true },
         }),
-        this.getGlobalSampahTerkumpul(filters), // Panggil Helper Baru
+        this.getGlobalSampahTerkumpul(filters),
       ]);
 
-      // 2. Optimasi Master Sampah Mapping
       const allBarangIds = [
         ...new Set(globalKategori.map((item) => item.barang_id)),
       ];
@@ -399,9 +401,7 @@ export const analyticsService = {
         masterSampah.map((b) => [b.id_barang, b.kategori_utama]),
       );
 
-      const formatWeight = (val) => Number(val || 0);
-
-      // 3. Mapping Data Per Unit
+      // Per unit
       const perUnitData = await Promise.all(
         units.map(async (unit) => {
           const unitWhereSetor = {
@@ -412,9 +412,16 @@ export const analyticsService = {
             nasabah: { bank_sampah_id: unit.id_unit },
             ...whereTarik,
           };
+          const unitWhereDetail = {
+            transaksi: {
+              nasabah: { bank_sampah_id: unit.id_unit },
+              ...(hasDateFilter ? { waktu: dateFilter } : {}),
+            },
+          };
 
           const [
             uTipe,
+            uBerat,
             uTotal,
             uKategori,
             uNasabahCount,
@@ -426,18 +433,22 @@ export const analyticsService = {
             uTarikRupiah,
             uTabungOnly,
           ] = await Promise.all([
-            prisma.transaksiSetor.groupBy({
+            prisma.detailSetor.groupBy({
               by: ["tipe_setoran"],
-              where: unitWhereSetor,
+              where: unitWhereDetail,
+              _sum: { berat: true },
+            }),
+            prisma.detailSetor.aggregate({
+              where: unitWhereDetail,
               _sum: { berat: true },
             }),
             prisma.transaksiSetor.aggregate({
               where: unitWhereSetor,
-              _sum: { berat: true, total_rp: true },
+              _sum: { total_rp: true },
             }),
-            prisma.transaksiSetor.groupBy({
+            prisma.detailSetor.groupBy({
               by: ["barang_id"],
-              where: unitWhereSetor,
+              where: unitWhereDetail,
               _sum: { berat: true },
             }),
             prisma.user.count({
@@ -473,7 +484,7 @@ export const analyticsService = {
           return {
             unit_id: unit.id_unit,
             nama_unit: unit.nama_unit,
-            total_kg: formatWeight(uTotal._sum.berat),
+            total_kg: formatWeight(uBerat._sum.berat),
             total_rp: formatWeight(uTotal._sum.total_rp),
             total_nasabah: uNasabahCount,
             total_transaksi_setor: uSetorCount,
@@ -516,10 +527,9 @@ export const analyticsService = {
         }),
       );
 
-      // 4. Final Result
       return {
         global: {
-          total_kg: formatWeight(globalTotal._sum.berat),
+          total_kg: formatWeight(globalBerat._sum.berat),
           total_rp: formatWeight(globalTotal._sum.total_rp),
           per_tipe: Object.fromEntries(
             globalTipe.map((i) => [i.tipe_setoran, formatWeight(i._sum.berat)]),
@@ -557,8 +567,6 @@ export const analyticsService = {
           saldo_aktif:
             formatWeight(globalTabungOnly._sum.total_rp) -
             formatWeight(globalTarikRupiah._sum.jumlah_tarik),
-
-          // --- PENAMBAHAN DATA BARU DI SINI ---
           sampah_terkumpul: globalSampahTerkumpul,
         },
         per_unit: perUnitData,
@@ -572,25 +580,25 @@ export const analyticsService = {
   async getSampahTerkumpulPerJenis(unitId, options = {}) {
     const { startDate, endDate } = options;
 
-    // Samakan logic filter tanggal dengan fungsi utama agar akurat
     const where = {
-      nasabah: { bank_sampah_id: unitId },
+      transaksi: { nasabah: { bank_sampah_id: unitId } },
     };
 
     if (startDate || endDate) {
-      where.waktu = {};
-      if (startDate) where.waktu.gte = new Date(`${startDate}T00:00:00.000Z`);
-      if (endDate) where.waktu.lte = new Date(`${endDate}T23:59:59.999Z`);
+      where.transaksi.waktu = {};
+      if (startDate)
+        where.transaksi.waktu.gte = new Date(`${startDate}T00:00:00.000Z`);
+      if (endDate)
+        where.transaksi.waktu.lte = new Date(`${endDate}T23:59:59.999Z`);
     }
 
-    const result = await prisma.transaksiSetor.groupBy({
+    const result = await prisma.detailSetor.groupBy({
       by: ["barang_id", "nama_barang_snapshot"],
       where,
       _sum: { berat: true },
-      _count: { id_setor: true },
+      _count: { id: true },
     });
 
-    // Ambil kategori dari master sampah
     const barangIds = result.map((r) => r.barang_id);
     const masterSampah = await prisma.masterSampah.findMany({
       where: { id_barang: { in: barangIds } },
@@ -600,14 +608,14 @@ export const analyticsService = {
     const kategoriMap = masterSampah.reduce((acc, item) => {
       acc[item.id_barang] = item.kategori_utama;
       return acc;
-    }, {}); // INI HARUS DI DALAM FUNGSI, SEBELUM return
+    }, {});
 
     return result.map((r) => ({
       barang_id: r.barang_id,
       nama_sampah: r.nama_barang_snapshot,
       kategori_utama: kategoriMap[r.barang_id] || null,
       total_berat: Number(r._sum.berat || 0),
-      total_transaksi: r._count.id_setor,
+      total_transaksi: r._count.id,
     }));
   },
 
@@ -616,20 +624,20 @@ export const analyticsService = {
 
     const where = {};
     if (startDate || endDate) {
-      where.waktu = {};
-      if (startDate) where.waktu.gte = new Date(`${startDate}T00:00:00.000Z`);
-      if (endDate) where.waktu.lte = new Date(`${endDate}T23:59:59.999Z`);
+      where.transaksi = { waktu: {} };
+      if (startDate)
+        where.transaksi.waktu.gte = new Date(`${startDate}T00:00:00.000Z`);
+      if (endDate)
+        where.transaksi.waktu.lte = new Date(`${endDate}T23:59:59.999Z`);
     }
 
-    // Agregasi global (semua unit)
-    const result = await prisma.transaksiSetor.groupBy({
+    const result = await prisma.detailSetor.groupBy({
       by: ["barang_id", "nama_barang_snapshot"],
       where,
       _sum: { berat: true },
-      _count: { id_setor: true },
+      _count: { id: true },
     });
 
-    // Ambil kategori dari master sampah untuk mapping
     const barangIds = result.map((r) => r.barang_id);
     const masterSampah = await prisma.masterSampah.findMany({
       where: { id_barang: { in: barangIds } },
@@ -646,7 +654,7 @@ export const analyticsService = {
       nama_sampah: r.nama_barang_snapshot,
       kategori_utama: kategoriMap[r.barang_id] || "LAINNYA",
       total_berat: Number(r._sum.berat || 0),
-      total_transaksi: r._count.id_setor,
+      total_transaksi: r._count.id,
     }));
   },
 };

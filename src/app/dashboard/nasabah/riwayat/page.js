@@ -3,19 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
-import {
-  History,
-  ArrowUpRight,
-  ArrowDownRight,
-  Calendar,
-  Package,
-  DollarSign,
-  RefreshCw,
-  ChevronLeft,
-  ChevronRight,
-  Wallet,
-  Banknote
-} from "lucide-react";
+import { History, ArrowUpRight, ArrowDownRight, Calendar, Package, DollarSign, RefreshCw, ChevronLeft, ChevronRight, Wallet, Banknote } from "lucide-react";
 
 export default function RiwayatNasabah() {
   const [loading, setLoading] = useState(true);
@@ -68,7 +56,7 @@ export default function RiwayatNasabah() {
   };
 
   useEffect(() => {
-    setPage(1); // Reset page saat ganti filter
+    setPage(1);
   }, [filter]);
 
   useEffect(() => {
@@ -96,20 +84,20 @@ export default function RiwayatNasabah() {
 
   const totalSetor = data.filter((d) => d.jenis === "SETOR").length;
   const totalTarik = data.filter((d) => d.jenis === "TARIK").length;
-  
-  // PERBAIKAN: Hitung hanya yang TABUNG (masuk saldo)
+
   const totalNilaiSetor = data
     .filter((d) => d.jenis === "SETOR" && d.metode_bayar === "TABUNG")
     .reduce((sum, d) => sum + (Number(d.total_rp) || 0), 0);
-  
+
+  // FIX: pakai jumlah_tarik bukan jumlah
   const totalNilaiTarik = data
     .filter((d) => d.jenis === "TARIK")
-    .reduce((sum, d) => sum + (Number(d.jumlah) || 0), 0);
+    .reduce((sum, d) => sum + (Number(d.jumlah_tarik) || 0), 0);
 
   return (
     <DashboardLayout>
       <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
-        
+
         <div className="space-y-2">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
             <History className="w-8 h-8 text-green-600 dark:text-green-400" />
@@ -169,10 +157,9 @@ export default function RiwayatNasabah() {
                 onClick={() => setFilter(type)}
                 className={`
                   px-4 py-2 rounded-lg text-sm font-medium transition-all
-                  ${
-                    filter === type
-                      ? "bg-green-600 text-white shadow-md"
-                      : "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700"
+                  ${filter === type
+                    ? "bg-green-600 text-white shadow-md"
+                    : "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700"
                   }
                 `}
               >
@@ -207,23 +194,18 @@ export default function RiwayatNasabah() {
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
-                      Tanggal
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
-                      Jenis
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
-                      Detail
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
-                      Jumlah
-                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Tanggal</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Jenis</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Detail</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Jumlah</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                   {data.map((item, index) => (
-                    <tr key={`${item.jenis}-${item.id}-${index}`} className="hover:bg-gray-50 dark:hover:bg-slate-800/50">
+                    <tr
+                      key={`${item.jenis}-${item.id_setor || item.id}-${index}`}
+                      className="hover:bg-gray-50 dark:hover:bg-slate-800/50"
+                    >
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                           <Calendar className="w-4 h-4" />
@@ -245,65 +227,67 @@ export default function RiwayatNasabah() {
                         )}
                       </td>
 
+                      {/* FIX: Detail sekarang loop detail_items untuk SETOR */}
                       <td className="px-4 py-4">
                         {item.jenis === "SETOR" ? (
-                          <div>
-                            <p className="text-sm font-semibold text-gray-800 dark:text-white">
-                              {item.barang?.nama || "-"}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {item.berat || 0} kg × {formatRupiah(item.harga_per_kg || 0)}/kg
+                          <div className="space-y-2">
+                            {item.detail_items?.length > 0 ? (
+                              item.detail_items.map((d, i) => (
+                                <div key={i}>
+                                  <p className="text-sm font-semibold text-gray-800 dark:text-white">
+                                    {d.nama_barang_snapshot || "-"}
+                                  </p>
+                                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      {d.berat} kg × {formatRupiah(d.harga_deal)}/kg
+                                    </span>
+                                    {d.tipe_setoran && (
+                                      <span className={`text-xs px-2 py-0.5 rounded
+                                        ${d.tipe_setoran === "COMMUNITY"
+                                          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                                          : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"}`}>
+                                        {d.tipe_setoran}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-sm text-gray-500">-</p>
+                            )}
+                            {/* Metode bayar di bawah list item */}
+                            {item.metode_bayar && (
+                              <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium
+                                ${item.metode_bayar === "TABUNG"
+                                  ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                                  : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400"}`}>
+                                {item.metode_bayar === "TABUNG" ? (
+                                  <><Wallet className="w-3 h-3" />TABUNG</>
+                                ) : (
+                                  <><Banknote className="w-3 h-3" />JUAL LANGSUNG</>
+                                )}
                               </span>
-                              {item.barang?.tipe && (
-                                <span className={`
-                                  text-xs px-2 py-0.5 rounded
-                                  ${item.barang.tipe === "COMMUNITY" 
-                                    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" 
-                                    : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"}
-                                `}>
-                                  {item.barang.tipe}
-                                </span>
-                              )}
-                              {item.metode_bayar && (
-                                <span className={`
-                                  text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1
-                                  ${item.metode_bayar === "TABUNG" 
-                                    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" 
-                                    : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400"}
-                                `}>
-                                  {item.metode_bayar === "TABUNG" ? (
-                                    <>
-                                      <Wallet className="w-3 h-3" />
-                                      TABUNG
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Banknote className="w-3 h-3" />
-                                      JUAL LANGSUNG
-                                    </>
-                                  )}
-                                </span>
-                              )}
-                            </div>
+                            )}
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Penarikan saldo
-                          </p>
+                          <div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Penarikan saldo</p>
+                            {item.catatan_tarik && (
+                              <p className="text-xs text-gray-400 mt-0.5">{item.catatan_tarik}</p>
+                            )}
+                          </div>
                         )}
                       </td>
 
+                      {/* FIX: jumlah_tarik bukan jumlah */}
                       <td className="px-4 py-4 text-right">
-                        <p className={`
-                          text-base font-bold
-                          ${item.jenis === "SETOR" 
-                            ? "text-green-600 dark:text-green-400" 
-                            : "text-orange-600 dark:text-orange-400"}
-                        `}>
-                          {item.jenis === "SETOR" 
+                        <p className={`text-base font-bold
+                          ${item.jenis === "SETOR"
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-orange-600 dark:text-orange-400"}`}>
+                          {item.jenis === "SETOR"
                             ? formatRupiah(item.total_rp || 0)
-                            : formatRupiah(item.jumlah || 0)}
+                            : formatRupiah(item.jumlah_tarik || 0)}
                         </p>
                       </td>
                     </tr>
@@ -314,13 +298,12 @@ export default function RiwayatNasabah() {
           )}
         </div>
 
-        {/* Pagination */}
         {!loading && data.length > 0 && (
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Halaman {pagination.page} dari {pagination.totalPages} ({pagination.total} transaksi)
             </p>
-            
+
             <div className="flex gap-2">
               <button
                 onClick={() => setPage(page - 1)}
@@ -330,7 +313,7 @@ export default function RiwayatNasabah() {
                 <ChevronLeft className="w-4 h-4" />
                 Prev
               </button>
-              
+
               <button
                 onClick={() => setPage(page + 1)}
                 disabled={page >= pagination.totalPages}

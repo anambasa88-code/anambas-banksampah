@@ -24,7 +24,7 @@ export async function GET(request) {
     };
 
     // 3. Eksekusi Analytics Service dengan Filter (PETUGAS UNIT)
-    const data = await analyticsService.getPetugasUnitSummary(currentUser.unit_id, filters);
+    const data = await analyticsService.getPetugasUnitSummary(currentUser.bank_sampah_id, filters);
     
     // 4. Return Data Success
     return NextResponse.json(data);
@@ -32,7 +32,7 @@ export async function GET(request) {
     // DEBUG LOG: Sangat penting agar error asli kelihatan di Server Logs
     console.error('--- ERROR DASHBOARD PETUGAS ---');
     console.error('User:', currentUser?.nama);
-    console.error('Unit ID:', currentUser?.unit_id);
+    console.error('Unit ID:', currentUser?.bank_sampah_id);
     console.error('Message:', error.message);
     console.error('Stack:', error.stack);
     console.error('-----------------------------');

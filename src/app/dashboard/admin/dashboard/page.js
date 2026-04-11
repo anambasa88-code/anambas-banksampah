@@ -18,6 +18,8 @@ import {
   ChevronDown,
   ChevronUp,
   Categories,
+  ArrowUpRight,
+  ArrowDownRight,
   Search,
   FileSpreadsheet,
   FileText,
@@ -341,7 +343,11 @@ export default function AdminDashboard() {
               <button
                 onClick={handleSearch}
                 disabled={loading}
-                className="px-8 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 
+             text-white font-semibold text-sm transition-all 
+             flex items-center gap-2 shadow-md shadow-emerald-500/20
+             disabled:opacity-70 disabled:cursor-not-allowed
+             active:scale-[0.97]"
               >
                 {loading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -454,7 +460,6 @@ export default function AdminDashboard() {
               })}
             </div>
           </div>
-
           <div className="p-6 rounded-2xl border border-gray-200 shadow-sm bg-white dark:bg-slate-900 dark:border-slate-700">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center">
@@ -517,23 +522,22 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-
           {/* CARD PERPUTARAN UANG */}
           <div className="p-6 rounded-2xl border border-gray-200 shadow-sm bg-white dark:bg-slate-900 dark:border-slate-700">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              <div className="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-violet-600 dark:text-violet-400" />
               </div>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-              Perputaran Uang
+              Perputaran Uang Seluruh 
             </p>
-            <p className="text-3xl font-bold text-gray-800 dark:text-white mb-4">
+            <p className="text-3xl font-bold text-violet-600 dark:text-violet-400 mb-4">
               {formatRupiah(global.total_rp)}
             </p>
 
             {/* Breakdown Metode */}
-            <div className="space-y-3 mb-4">
+            <div className="space-y-2 mb-4">
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                 Breakdown Metode Bayar
               </p>
@@ -564,36 +568,50 @@ export default function AdminDashboard() {
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                 Saldo Tabungan Nasabah
               </p>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center px-2 py-1 rounded-lg bg-green-50 dark:bg-green-900/20 text-sm">
+                  <span className="flex items-center gap-1 text-green-700 dark:text-green-400">
+                    <ArrowUpRight className="w-3 h-3" />
                     Uang Masuk (Tabung)
                   </span>
-                  <span className="font-medium text-gray-800 dark:text-white">
+                  <span className="font-bold text-green-700 dark:text-green-400">
                     {formatRupiah(
                       global.perputaran_uang_per_metode?.TABUNG || 0,
                     )}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">
+                <div className="flex justify-between items-center px-2 py-1 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-sm">
+                  <span className="flex items-center gap-1 text-orange-600 dark:text-orange-400">
+                    <ArrowDownRight className="w-3 h-3" />
                     Uang Keluar (Tarik)
                   </span>
-                  <span className="font-medium text-red-600 dark:text-red-400">
+                  <span className="font-bold text-orange-600 dark:text-orange-400">
                     {formatRupiah(global.total_penarikan_rp || 0)}
                   </span>
                 </div>
-                <div className="pt-2 border-t border-gray-300 dark:border-slate-600 flex justify-between">
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">
+
+                {/* Pembatas */}
+                <div className="flex items-center gap-2 my-1">
+                  <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                    Saldo
+                  </span>
+                  <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
+                </div>
+
+                <div className="flex justify-between items-center px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-sm border border-emerald-300 dark:border-emerald-700">
+                  <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-bold">
+                    <Wallet className="w-3 h-3" />
                     Saldo Aktif Tersisa
                   </span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400">
                     {formatRupiah(global.saldo_aktif || 0)}
                   </span>
                 </div>
               </div>
             </div>
           </div>
+          /// END OF GLOBAL STATS CARDS
         </div>
 
         {/* Judul & Filter Kategori */}
@@ -609,10 +627,10 @@ export default function AdminDashboard() {
                 <button
                   key={cat.value}
                   onClick={() => setActiveTab(cat.value)}
-                  className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                  className={`px-4 py-2 rounded-2xl text-sm font-medium whitespace-nowrap transition-all duration-200 ${
                     activeTab === cat.value
-                      ? "bg-blue-600 text-white shadow-md shadow-blue-200"
-                      : "bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-slate-700"
+                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/25"
+                      : "bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-700"
                   }`}
                 >
                   {cat.label}
@@ -849,7 +867,6 @@ export default function AdminDashboard() {
                             })}
                           </div>
                         </div>
-
                         {/* Tipe Setoran + Gender */}
                         <div className="p-4 rounded-lg border border-gray-200 dark:border-slate-700">
                           <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
@@ -913,7 +930,6 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         </div>
-
                         {/* Transaksi */}
                         <div className="p-4 rounded-lg border border-gray-200 dark:border-slate-700">
                           <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
@@ -965,11 +981,10 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         </div>
-
                         {/* Perputaran Uang */}
                         <div className="p-4 rounded-lg border border-gray-200 dark:border-slate-700">
                           <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                            <DollarSign className="w-4 h-4" />
+                            <DollarSign className="w-4 h-4 text-violet-500" />
                             Perputaran Uang
                           </p>
                           <div className="space-y-3">
@@ -979,7 +994,7 @@ export default function AdminDashboard() {
                                 <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                                   Total
                                 </span>
-                                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                                <span className="text-sm font-bold text-violet-600 dark:text-violet-400">
                                   {formatRupiah(unit.total_rp || 0)}
                                 </span>
                               </div>
@@ -1018,31 +1033,44 @@ export default function AdminDashboard() {
                               <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Saldo Tabungan Nasabah
                               </p>
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-gray-500 dark:text-gray-400">
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between items-center px-2 py-1 rounded-lg bg-green-50 dark:bg-green-900/20 text-xs">
+                                  <span className="flex items-center gap-1 text-green-700 dark:text-green-400">
+                                    <ArrowUpRight className="w-3 h-3" />
                                     Uang Masuk (Tabung)
                                   </span>
-                                  <span className="font-semibold text-green-600 dark:text-green-400">
+                                  <span className="font-bold text-green-700 dark:text-green-400">
                                     {formatRupiah(
                                       unit.perputaran_uang_per_metode?.TABUNG ||
                                         0,
                                     )}
                                   </span>
                                 </div>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-gray-500 dark:text-gray-400">
+                                <div className="flex justify-between items-center px-2 py-1 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-xs">
+                                  <span className="flex items-center gap-1 text-orange-600 dark:text-orange-400">
+                                    <ArrowDownRight className="w-3 h-3" />
                                     Uang Keluar (Tarik)
                                   </span>
-                                  <span className="font-semibold text-orange-600 dark:text-orange-400">
+                                  <span className="font-bold text-orange-600 dark:text-orange-400">
                                     {formatRupiah(unit.total_penarikan_rp || 0)}
                                   </span>
                                 </div>
-                                <div className="flex justify-between text-xs pt-2 border-t border-gray-100 dark:border-slate-800">
-                                  <span className="font-medium text-gray-700 dark:text-gray-300">
+
+                                {/* Pembatas */}
+                                <div className="flex items-center gap-2 my-1">
+                                  <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
+                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                    Saldo
+                                  </span>
+                                  <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
+                                </div>
+
+                                <div className="flex justify-between items-center px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-xs border border-emerald-300 dark:border-emerald-700">
+                                  <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-bold">
+                                    <Wallet className="w-3 h-3" />
                                     Saldo Aktif Tersisa
                                   </span>
-                                  <span className="font-bold text-green-600 dark:text-green-400">
+                                  <span className="font-bold text-emerald-700 dark:text-emerald-400">
                                     {formatRupiah(unit.saldo_aktif || 0)}
                                   </span>
                                 </div>
@@ -1050,6 +1078,7 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         </div>
+                        // Batas
                       </div>
                     </div>
                   )}

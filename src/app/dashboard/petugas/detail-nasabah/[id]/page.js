@@ -137,33 +137,15 @@ export default function DetailNasabahPage() {
     .reduce((sum, d) => sum + (Number(d.jumlah) || 0), 0);
 
   // Letakkan di atas return JSX
-  const groupedData = data.reduce((acc, item) => {
-    // Jika tidak ada group_id, gunakan ID setor/tarik agar tidak digabung jadi satu
-    const key =
-      item.group_id ||
-      (item.jenis === "SETOR" ? item.id_setor : item.id_tarik) ||
-      `old-${Math.random()}`;
 
-    if (!acc[key]) {
-      acc[key] = {
-        ...item,
-        subItems: [],
-        totalGroupRp: 0,
-      };
-    }
-
-    acc[key].subItems.push(item);
-    acc[key].totalGroupRp += Number(
-      item.total_rp ||
-        item.jumlah ||
-        Number(item.berat) * Number(item.harga_per_kg) ||
-        0,
-    );
-
-    return acc;
-  }, {});
-
-  const finalDisplayData = Object.values(groupedData);
+  const finalDisplayData = data.map((item) => ({
+    ...item,
+    subItems: item.jenis === "SETOR" ? item.detail_items || [] : [],
+    totalGroupRp:
+      item.jenis === "SETOR"
+        ? Number(item.total_rp)
+        : Number(item.jumlah_tarik),
+  }));
 
   return (
     <DashboardLayout>
@@ -352,6 +334,9 @@ export default function DetailNasabahPage() {
                       Tanggal
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
+                      Tarik/Setor
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
                       Jenis
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
@@ -395,6 +380,24 @@ export default function DetailNasabahPage() {
                             {item.jenis}
                           </span>
                         </div>
+                      </td>
+
+                      <td className="px-4 py-4">
+                        {item.jenis === "SETOR" ? (
+                          item.metode_bayar === "TABUNG" ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase bg-green-50 text-green-600 border border-green-100">
+                              TABUNG
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase bg-slate-100 text-slate-500 border border-slate-200">
+                              JUAL LANGSUNG
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-[10px] text-slate-400 font-bold">
+                            —
+                          </span>
+                        )}
                       </td>
 
                       <td className="px-4 py-4">
@@ -447,7 +450,13 @@ export default function DetailNasabahPage() {
 
                       <td className="px-4 py-4 text-right">
                         <p
-                          className={`text-base font-black ${item.jenis === "SETOR" ? "text-emerald-600" : "text-orange-600"}`}
+                          className={`text-base font-black ${
+                            item.jenis === "TARIK"
+                              ? "text-red-600"
+                              : item.metode_bayar === "TABUNG"
+                                ? "text-emerald-600"
+                                : "text-slate-500"
+                          }`}
                         >
                           {formatRupiah(item.totalGroupRp)}
                         </p>
