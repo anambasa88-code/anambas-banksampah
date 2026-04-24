@@ -45,6 +45,7 @@ export const reportService = {
             harga_deal: Number(d.harga_deal),
             total_rp: Number(d.total_rp),
             tipe_setoran: d.tipe_setoran,
+            kategori_utama: d.barang?.kategori_utama || 'LAINNYA',
           })),
         })),
       );

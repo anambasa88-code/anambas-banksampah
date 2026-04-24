@@ -10,12 +10,10 @@ export async function getAllMasterSampah(options = {}) {
     activeOnly = true,
     unitId = null,
     page = 1,
-    limit = 20,  // default 20 per page
+    limit = 20,
     search = '',
     category = ''
   } = options;
-
-  const skip = (page - 1) * limit;
 
   const where = {};
 
@@ -33,6 +31,11 @@ export async function getAllMasterSampah(options = {}) {
       { keterangan_pusat: { contains: search, mode: 'insensitive' } }
     ];
   }
+
+  // limit=0 berarti ambil semua (no pagination)
+  const paginationOptions = limit === 0
+    ? {}
+    : { skip: (page - 1) * limit, take: limit };
 
   const [items, total] = await Promise.all([
     prisma.masterSampah.findMany({
@@ -57,13 +60,11 @@ export async function getAllMasterSampah(options = {}) {
         { kategori_utama: 'asc' },
         { nama_barang: 'asc' }
       ],
-      skip,
-      take: limit
+      ...paginationOptions
     }),
     prisma.masterSampah.count({ where })
   ]);
 
-  // Transform data: prioritaskan harga_lokal kalau ada
   const transformedItems = items.map(item => {
     const hargaLokal = item.harga_lokal_unit?.[0]?.harga_lokal;
     return {

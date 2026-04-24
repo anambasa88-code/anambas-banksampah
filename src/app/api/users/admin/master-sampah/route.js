@@ -16,7 +16,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const showAll = searchParams.get("showAll") === "true";
     const page = parseInt(searchParams.get("page")) || 1;
-    const limit = parseInt(searchParams.get("limit")) || 20; // default 20 per page
+    const limit = showAll ? 0 : (parseInt(searchParams.get("limit")) || 20); // default 20 per page
     const search = searchParams.get("search") || "";
     const category = searchParams.get("category") || "";
 

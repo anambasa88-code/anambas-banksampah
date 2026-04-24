@@ -1,68 +1,89 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
-import { LayoutDashboard, History, Users, Wallet, LogOut, X, Recycle, Building2, } from "lucide-react";
+import {
+  LayoutDashboard,
+  History,
+  Users,
+  Wallet,
+  LogOut,
+  X,
+  Recycle,
+  Building2,
+} from "lucide-react";
 
-export default function Sidebar({ isMobile = false, isOpen = false, onClose }) {
+const MENU_BY_ROLE = {
+  NASABAH: [
+    {
+      icon: LayoutDashboard,
+      label: "Dashboard",
+      href: "/dashboard/nasabah/dashboard",
+    },
+    { icon: History, label: "Riwayat", href: "/dashboard/nasabah/riwayat" },
+  ],
+  PETUGAS: [
+    {
+      icon: LayoutDashboard,
+      label: "Dashboard",
+      href: "/dashboard/petugas/dashboard",
+    },
+    {
+      icon: Users,
+      label: "Daftar Nasabah",
+      href: "/dashboard/petugas/daftar-nasabah",
+    },
+    {
+      icon: Wallet,
+      label: "Harga Lokal",
+      href: "/dashboard/petugas/harga-lokal",
+    },
+    {
+      icon: History,
+      label: "Riwayat Transaksi",
+      href: "/dashboard/petugas/transaksi",
+    },
+  ],
+  ADMIN: [
+    {
+      icon: LayoutDashboard,
+      label: "Dashboard",
+      href: "/dashboard/admin/dashboard",
+    },
+    {
+      icon: Users,
+      label: "Daftar Petugas",
+      href: "/dashboard/admin/daftar-petugas",
+    },
+    {
+      icon: Recycle,
+      label: "Master Sampah",
+      href: "/dashboard/admin/master-sampah",
+    },
+    {
+      icon: Building2,
+      label: "Unit Bank Sampah",
+      href: "/dashboard/admin/unit-bank-sampah",
+    },
+  ],
+};
+
+export default function Sidebar({
+  isMobile = false,
+  isOpen = false,
+  onClose,
+  profile = {},
+}) {
   const pathname = usePathname();
-
-  const [mounted, setMounted] = useState(false);
-  const [username, setUsername] = useState("");
-  const [role, setRole] = useState("");
-  // Tambahan 2 state baru biar lengkap
-  const [fullName, setFullName] = useState("");
-  const [unitName, setUnitName] = useState("");
-
-  useEffect(() => {
-    setMounted(true);
-
-    // 1. Ambil data cepat dari localStorage
-    setUsername(localStorage.getItem("bs_username") || "User");
-    setRole(localStorage.getItem("bs_role") || "");
-
-    // 2. Ambil data lengkap dari API dengan TOKEN
-    const fetchProfile = async () => {
-      try {
-        // Ambil token dari cookie
-        const token = document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("bs_token="))
-          ?.split("=")[1];
-
-        const response = await fetch("/api/users/profile", {
-          headers: {
-            // WAJIB KIRIM INI supaya tidak ditolak Middleware
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log("Data Profile:", data); // Cek di console F12
-
-          setFullName(data.nama_lengkap);
-          setUnitName(data.unit?.nama_unit);
-          setRole(data.peran);
-          setUsername(data.nickname);
-        } else {
-          console.error("Gagal fetch profile, status:", response.status);
-        }
-      } catch (error) {
-        console.error("Error Fetching Profile:", error);
-      }
-    };
-
-    fetchProfile();
-  }, []);
+  const { fullName, username, role, unitName } = profile;
+  const menuItems = MENU_BY_ROLE[role] || [];
 
   const handleLogout = () => {
     toast.warning("Yakin ingin keluar?", {
       action: {
         label: "Ya, Keluar",
         onClick: () => {
-          // Clear cookie
           document.cookie = "bs_token=; path=/; max-age=0";
           localStorage.clear();
           toast.success("Berhasil logout");
@@ -71,113 +92,40 @@ export default function Sidebar({ isMobile = false, isOpen = false, onClose }) {
           }, 300);
         },
       },
-      cancel: {
-        label: "Batal",
-        onClick: () => {},
-      },
+      cancel: { label: "Batal", onClick: () => {} },
       duration: 5000,
     });
   };
 
-  const getMenuByRole = () => {
-    if (role === "NASABAH") {
-      return [
-        {
-          icon: LayoutDashboard,
-          label: "Dashboard",
-          href: "/dashboard/nasabah/dashboard",
-        },
-        { icon: History, label: "Riwayat", href: "/dashboard/nasabah/riwayat" },
-      ];
-    }
-
-    if (role === "PETUGAS") {
-      return [
-        {
-          icon: LayoutDashboard,
-          label: "Dashboard",
-          href: "/dashboard/petugas/dashboard",
-        },
-        {
-          icon: Users,
-          label: "Daftar Nasabah",
-          href: "/dashboard/petugas/daftar-nasabah",
-        },
-        {
-          icon:  Wallet,
-          label: "Harga Lokal",
-          href: "/dashboard/petugas/harga-lokal",
-        },
-        {
-          icon: History,
-          label: "Riwayat Transaksi",
-          href: "/dashboard/petugas/transaksi",
-        },
-      ];
-    }
-
-    if (role === "ADMIN") {
-      return [
-        {
-          icon: LayoutDashboard,
-          label: "Dashboard",
-          href: "/dashboard/admin/dashboard",
-        },
-        {
-          icon: Users,
-          label: "Daftar Petugas",
-          href: "/dashboard/admin/daftar-petugas",
-        },
-        {
-          icon: Recycle,
-          label: "Master Sampah",
-          href: "/dashboard/admin/master-sampah",
-        },
-        {
-          icon: Building2,
-          label: "Unit Bank Sampah",
-          href: "/dashboard/admin/unit-bank-sampah",
-        },
-      ];
-    }
-
-    return [];
-  };
-
-  const menuItems = getMenuByRole();
-
   const sidebarClasses = isMobile
-    ? `w-64 h-full bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 flex flex-col shadow-xl transform transition-transform duration-300 ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      }`
+    ? `w-64 h-full bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 flex flex-col shadow-xl transform transition-transform duration-300 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
     : "w-64 h-screen bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 flex flex-col sticky top-0";
 
   return (
     <aside className={sidebarClasses}>
-      {/* Header */}
+      {/* Logo & Unit Name */}
       <div className="p-4 border-b border-gray-200 dark:border-slate-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-600 flex items-center justify-center">
-              <Recycle className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center flex-shrink-0">
+              <Recycle className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-gray-800 dark:text-white">
-                Bank Sampah
+            <div className="min-w-0">
+              <h2 className="text-[13px] font-bold text-slate-800 dark:text-white leading-tight truncate">
+                {/* ✅ Nama unit dinamis */}
+                {unitName || "Bank Sampah"}
               </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Anambas
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                Sistem Pengelolaan
               </p>
             </div>
           </div>
-
           {isMobile && (
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-              aria-label="Close Menu"
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
             >
-              <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <X className="w-4 h-4 text-slate-500" />
             </button>
           )}
         </div>
@@ -185,81 +133,69 @@ export default function Sidebar({ isMobile = false, isOpen = false, onClose }) {
 
       {/* User Info */}
       <div className="p-4 border-b border-gray-200 dark:border-slate-800">
-        {mounted ? (
-          <div className="flex flex-col gap-0.5">
-            {/* 1. NAMA LENGKAP - Identitas Utama */}
+        {fullName ? (
+          <div className="space-y-0.5">
             <p
-              className="text-sm font-bold text-gray-800 dark:text-white truncate"
+              className="text-[13px] font-bold text-slate-800 dark:text-white truncate"
               title={fullName}
             >
-              {fullName || "Nama Belum Diatur"}
+              {fullName}
             </p>
-
-            {/* 2. NICKNAME - Tampil sesuai aslinya (Tanpa Lower Case) */}
-            <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
               {username}
             </p>
-
-            {/* 3. ROLE - Badge Peran */}
-            <div className="mt-1.5">
-              <span className="px-2 py-0.5 text-[9px] font-extrabold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded uppercase tracking-wider">
+            <div className="flex items-center justify-between mt-2">
+              <span className="px-2 py-0.5 text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-md uppercase tracking-wider">
                 {role}
               </span>
-            </div>
-
-            {/* 4. UNIT BANK SAMPAH */}
-            <div className="flex items-center gap-1.5 mt-2 text-[10px] text-gray-500 dark:text-gray-400">
-              <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-              <span className="truncate font-medium italic">
-                {unitName || "Unit Pusat"}
-              </span>
+              <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                <Building2 className="w-3 h-3" />
+                <span className="truncate max-w-[100px] italic">
+                  {unitName || "Unit Pusat"}
+                </span>
+              </div>
             </div>
           </div>
         ) : (
-          /* Loading Skeleton */
-          <div className="space-y-2">
-            <div className="h-4 w-40 bg-gray-100 dark:bg-slate-800 rounded animate-pulse" />
-            <div className="h-3 w-24 bg-gray-100 dark:bg-slate-800 rounded animate-pulse" />
-            <div className="h-3 w-32 bg-gray-100 dark:bg-slate-800 rounded animate-pulse mt-2" />
+          <div className="space-y-2 animate-pulse">
+            <div className="h-4 w-36 bg-slate-100 dark:bg-slate-800 rounded" />
+            <div className="h-3 w-24 bg-slate-100 dark:bg-slate-800 rounded" />
+            <div className="h-3 w-28 bg-slate-100 dark:bg-slate-800 rounded mt-2" />
           </div>
         )}
       </div>
 
-      {/* Navigation Menu */}
+      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
-
           return (
             <a
               key={item.href}
               href={item.href}
-              className={`
-                flex items-center gap-3 px-4 py-3 rounded-lg transition-all
-                ${
-                  isActive
-                    ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-semibold"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800"
-                }
-              `}
               onClick={isMobile ? onClose : undefined}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-[13px] ${
+                isActive
+                  ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-semibold"
+                  : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium"
+              }`}
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-sm">{item.label}</span>
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              {item.label}
             </a>
           );
         })}
       </nav>
 
-      {/* Footer - Logout */}
+      {/* Logout */}
       <div className="p-3 border-t border-gray-200 dark:border-slate-800">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all text-[13px] font-medium"
         >
-          <LogOut className="w-5 h-5" />
-          <span className="text-sm font-medium">Keluar</span>
+          <LogOut className="w-4 h-4" />
+          Keluar
         </button>
       </div>
     </aside>

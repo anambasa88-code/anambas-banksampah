@@ -4,17 +4,12 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
-import ConfirmSetorModal from "@/components/ConfirmSetorModal";
-import {
-  ArrowLeft,
-  Search,
-  Trash2,
-  Plus,
-  ShoppingCart,
-  MessageSquare,
-} from "lucide-react";
-
-const CATEGORIES = ["SEMUA", "PLASTIK", "KERTAS", "LOGAM", "CAMPURAN"];
+import ConfirmSetorModal from "@/components/petugas/setor/ConfirmSetorModal";
+import CategoryTabs from "@/components/petugas/setor/CategoryTabs";
+import BarangRow from "@/components/petugas/setor/BarangRow";
+import ItemDetailSheet from "@/components/petugas/setor/ItemDetailSheet";
+import Cart from "@/components/petugas/setor/Cart";
+import { ArrowLeft, Search, ShoppingCart, User, PackageX } from "lucide-react";
 
 export default function InputSetorPage() {
   const { id } = useParams();
@@ -28,7 +23,6 @@ export default function InputSetorPage() {
   const [searchBarang, setSearchBarang] = useState("");
   const [metodeBayar, setMetodeBayar] = useState("TABUNG");
   const [catatan, setCatatan] = useState("");
-
   const [cart, setCart] = useState([]);
   const [selectedBarang, setSelectedBarang] = useState(null);
   const [tempItem, setTempItem] = useState({
@@ -37,11 +31,14 @@ export default function InputSetorPage() {
     harga_manual: "",
     tipe_setoran: "COMMUNITY",
   });
+  const [showCart, setShowCart] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   useEffect(() => {
     if (id) fetchInitialData();
   }, [id]);
+
+  // ── Data fetching ──────────────────────────────────────────────────────────
 
   const fetchInitialData = async () => {
     try {
@@ -59,12 +56,14 @@ export default function InputSetorPage() {
       const bData = await resB.json();
       setNasabah(nData.nasabah);
       setBarangList(bData.data?.data || bData.data || []);
-    } catch (err) {
+    } catch {
       toast.error("Gagal sinkron data");
     } finally {
       setLoadingData(false);
     }
   };
+
+  // ── Cart logic ─────────────────────────────────────────────────────────────
 
   const handleBarangClick = (barang) => {
     setSelectedBarang(barang);
@@ -80,48 +79,40 @@ export default function InputSetorPage() {
     if (!selectedBarang) return 0;
     if (tipe === "SISTEM") return Number(selectedBarang.harga_aktif);
     if (tipe === "LOKAL")
-      return selectedBarang.harga_lokal
-        ? Number(selectedBarang.harga_lokal)
-        : null;
+      return selectedBarang.harga_lokal ? Number(selectedBarang.harga_lokal) : null;
     return Number(tempItem.harga_manual) || 0;
   };
 
   const addToCart = () => {
-    // 1. Validasi Awal
     if (!selectedBarang) return toast.error("Pilih barang terlebih dahulu");
     if (!tempItem.berat || parseFloat(tempItem.berat) <= 0)
       return toast.error("Isi berat dengan benar");
 
-    // 2. Penentuan Harga Deal (Pastikan angka)
     const hargaDeal =
       tempItem.tipe_harga === "CUSTOM"
         ? Number(tempItem.harga_manual)
         : Number(getHargaByTipe(tempItem.tipe_harga));
 
-    // 3. Cek apakah harga valid
     if (isNaN(hargaDeal) || hargaDeal === null)
       return toast.error("Harga tidak valid atau belum ditetapkan!");
 
-    // 4. Validasi Batas Harga (Jika Custom)
     if (tempItem.tipe_harga === "CUSTOM") {
       if (
         hargaDeal < selectedBarang.batas_bawah ||
         hargaDeal > selectedBarang.batas_atas
       ) {
         return toast.error(
-          `Harga Rp${hargaDeal.toLocaleString()} melampaui batas (Rp${selectedBarang.batas_bawah.toLocaleString()} - Rp${selectedBarang.batas_atas.toLocaleString()})`,
+          `Harga Rp${hargaDeal.toLocaleString()} melampaui batas (Rp${selectedBarang.batas_bawah.toLocaleString()} - Rp${selectedBarang.batas_atas.toLocaleString()})`
         );
       }
     }
 
-    // 5. Masukkan ke Keranjang (Mapping Nama Enum Prisma)
-    setCart([
-      ...cart,
+    setCart((prev) => [
+      ...prev,
       {
         barang_id: selectedBarang.id_barang,
         nama_barang: selectedBarang.nama_barang,
         berat: Number(tempItem.berat),
-        // Pastikan value ini "COMMUNITY" atau "OCEAN_DEBRIS" sesuai schema.prisma
         tipe_setoran: tempItem.tipe_setoran,
         tipe_harga: tempItem.tipe_harga,
         harga_manual: Number(tempItem.harga_manual) || 0,
@@ -130,10 +121,9 @@ export default function InputSetorPage() {
       },
     ]);
 
-    // 6. Reset & Feedback
     setSelectedBarang(null);
-    setTempItem({ ...tempItem, berat: "", harga_manual: "" });
-    toast.success(`${selectedBarang.nama_barang} masuk keranjang`);
+    setTempItem((prev) => ({ ...prev, berat: "", harga_manual: "" }));
+    toast.success(`${selectedBarang.nama_barang} masuk keranjang!`);
   };
 
   const submitSemuaSetoran = async () => {
@@ -162,415 +152,244 @@ export default function InputSetorPage() {
     }
   };
 
+  // ── Derived ────────────────────────────────────────────────────────────────
+
+  const removeFromCart = (idx) =>
+    setCart((prev) => prev.filter((_, i) => i !== idx));
+
   const totalTransaksi = cart.reduce((sum, item) => sum + item.total_rp, 0);
+
+  const filteredBarang = barangList.filter(
+    (b) =>
+      (activeCategory === "SEMUA" || b.kategori_utama === activeCategory) &&
+      b.nama_barang.toLowerCase().includes(searchBarang.toLowerCase())
+  );
+
+  const sharedCartProps = {
+    cart,
+    onRemoveItem: removeFromCart,
+    metodeBayar,
+    onMetodeBayarChange: setMetodeBayar,
+    catatan,
+    onCatatanChange: setCatatan,
+    totalTransaksi,
+    loading,
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 text-slate-900">
-        <header className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="text-slate-400 hover:text-emerald-600 transition-colors"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <div>
-              <h1 className="text-sm font-bold uppercase tracking-tight">
-                Setor Sampah
-              </h1>
-              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">
-                {nasabah?.nama_lengkap}
-              </p>
-            </div>
-          </div>
-        </header>
+      <div className="min-h-screen bg-slate-50 pb-24 lg:pb-6">
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* KATALOG TABEL */}
-          <div className="lg:col-span-7 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="p-3 border-b border-slate-100 flex flex-col sm:flex-row justify-between gap-3 bg-slate-50/50">
-              <div className="flex gap-1 overflow-x-auto no-scrollbar">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
-                    className={`px-3 py-1 rounded-md text-[9px] font-black transition-all ${activeCategory === cat ? "bg-emerald-600 text-white" : "bg-white border border-slate-200 text-slate-400"}`}
-                  >
-                    {cat}
-                  </button>
-                ))}
+        {/* ── Header ── */}
+        <div className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.back()}
+                className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-500 hover:text-emerald-600"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <div>
+                <h1 className="text-sm font-semibold text-slate-800">
+                  Input Setoran
+                </h1>
+                {loadingData ? (
+                  <div className="h-3 w-28 bg-slate-100 rounded-full animate-pulse mt-0.5" />
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <User size={10} className="text-emerald-500" />
+                    <p className="text-[10px] font-medium text-emerald-600 truncate max-w-[180px]">
+                      {nasabah?.nama_lengkap}
+                    </p>
+                  </div>
+                )}
               </div>
+            </div>
+
+            {/* Cart button — mobile only */}
+            <button
+              onClick={() => setShowCart(true)}
+              className="relative p-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 active:scale-95 transition-all lg:hidden shadow-md shadow-emerald-200"
+            >
+              <ShoppingCart size={18} />
+              {cart.length > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 bg-red-500 text-white text-[9px] font-semibold rounded-full flex items-center justify-center">
+                  {cart.length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* ── Main ── */}
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="lg:grid lg:grid-cols-12 lg:gap-5 lg:items-start">
+
+            {/* ── Katalog ── */}
+            <div className="lg:col-span-8 space-y-3">
+
+              {/* Search */}
               <div className="relative">
                 <Search
-                  size={12}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300"
+                  size={14}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
                   type="text"
-                  placeholder="Cari..."
-                  className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] outline-none w-full sm:w-36"
+                  placeholder="Cari nama barang..."
+                  className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm"
                   value={searchBarang}
                   onChange={(e) => setSearchBarang(e.target.value)}
                 />
               </div>
-            </div>
 
-            <div className="overflow-x-auto max-h-[400px] custom-scrollbar">
-              <table className="w-full text-left">
-                <thead className="sticky top-0 bg-white shadow-sm z-10 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b">
-                  <tr>
-                    <th className="px-4 py-3">Nama</th>
-                    <th className="px-4 py-3 text-right">Harga</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {barangList
-                    .filter(
-                      (b) =>
-                        (activeCategory === "SEMUA" ||
-                          b.kategori_utama === activeCategory) &&
-                        b.nama_barang
-                          .toLowerCase()
-                          .includes(searchBarang.toLowerCase()),
-                    )
-                    .map((b) => (
-                      <tr
-                        key={b.id_barang}
-                        onClick={() => handleBarangClick(b)}
-                        className={`cursor-pointer transition-colors ${selectedBarang?.id_barang === b.id_barang ? "bg-emerald-50" : "hover:bg-slate-50"}`}
-                      >
-                        <td className="px-4 py-3 text-xs font-semibold">
-                          {b.nama_barang}
-                        </td>
-                        <td className="px-4 py-3 text-right text-xs font-black text-emerald-600">
-                          Rp{b.harga_aktif?.toLocaleString()}
-                        </td>
-                        <td className="px-4 py-3 text-right text-slate-200">
-                          <Plus size={14} />
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+              {/* Category Tabs */}
+              <CategoryTabs
+                activeCategory={activeCategory}
+                onCategoryChange={setActiveCategory}
+              />
 
-          {/* FORM INPUT & KERANJANG */}
-          <div className="lg:col-span-5 space-y-4">
-            {selectedBarang && (
-              <div className="p-4 bg-white rounded-xl border-2 border-emerald-500 shadow-md space-y-4 animate-in slide-in-from-right-2">
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-[10px] font-black uppercase text-emerald-600 italic">
-                    Pilih Harga: {selectedBarang.nama_barang}
+              {/* List Container */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+
+                {/* List Header */}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+                  <span className="text-[10px] font-medium text-slate-600">
+                    Nama Barang
                   </span>
-                  <button
-                    onClick={() => setSelectedBarang(null)}
-                    className="text-slate-300 hover:text-red-500"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <span className="text-[10px] font-medium text-slate-600">
+                    Harga / kg
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3">
-                  {/* Opsi Harga Detail */}
-                  <div className="grid grid-cols-3 gap-2">
-                    {/* Tombol Sistem */}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTempItem({
-                          ...tempItem,
-                          tipe_harga: "SISTEM",
-                          harga_manual: "",
-                        })
-                      }
-                      className={`p-2 rounded-lg border flex flex-col items-center transition-all ${
-                        tempItem.tipe_harga === "SISTEM"
-                          ? "border-emerald-500 bg-emerald-50 text-emerald-600 shadow-sm"
-                          : "border-slate-100 text-slate-400"
-                      }`}
-                    >
-                      <span className="text-[8px] font-black uppercase tracking-tighter">
-                        Sistem
-                      </span>
-                      <span className="text-[10px] font-bold">
-                        Rp{selectedBarang.harga_aktif.toLocaleString()}
-                      </span>
-                    </button>
-
-                    {/* Tombol Lokal (Disabled jika null) */}
-                    <button
-                      type="button"
-                      disabled={!selectedBarang.harga_lokal}
-                      onClick={() =>
-                        setTempItem({
-                          ...tempItem,
-                          tipe_harga: "LOKAL",
-                          harga_manual: "",
-                        })
-                      }
-                      className={`p-2 rounded-lg border flex flex-col items-center transition-all ${
-                        !selectedBarang.harga_lokal
-                          ? "opacity-40 cursor-not-allowed bg-slate-50 border-slate-200 text-slate-300"
-                          : tempItem.tipe_harga === "LOKAL"
-                            ? "border-emerald-500 bg-emerald-50 text-emerald-600 shadow-sm"
-                            : "border-slate-100 text-slate-400 hover:border-emerald-200"
-                      }`}
-                    >
-                      <span className="text-[8px] font-black uppercase tracking-tighter">
-                        Lokal
-                      </span>
-                      <span className="text-[10px] font-bold">
-                        {selectedBarang.harga_lokal
-                          ? `Rp${selectedBarang.harga_lokal.toLocaleString()}`
-                          : "Belum Ada"}
-                      </span>
-                    </button>
-
-                    {/* Tombol Custom */}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTempItem({ ...tempItem, tipe_harga: "CUSTOM" })
-                      }
-                      className={`p-2 rounded-lg border flex flex-col items-center transition-all ${
-                        tempItem.tipe_harga === "CUSTOM"
-                          ? "border-emerald-500 bg-emerald-600 text-white shadow-md"
-                          : "border-slate-100 text-slate-400"
-                      }`}
-                    >
-                      <span className="text-[8px] font-black uppercase tracking-tighter">
-                        Custom
-                      </span>
-                      <span className="text-[10px] font-bold italic">
-                        Atur Manual
-                      </span>
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase">
-                        Berat (KG)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={tempItem.berat}
-                        onChange={(e) =>
-                          setTempItem({ ...tempItem, berat: e.target.value })
-                        }
-                        className="w-full bg-slate-50 border rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-emerald-500"
-                        placeholder="0.00"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase">
-                        Sumber Sampah
-                      </label>
-                      <div className="flex gap-2">
-                        {["COMMUNITY", "OCEAN_DEBRIS"].map((sumber) => (
-                          <button
-                            key={sumber}
-                            type="button"
-                            onClick={() =>
-                              setTempItem({ ...tempItem, tipe_setoran: sumber })
-                            }
-                            className={`flex-1 py-1.5 rounded-md text-[10px] font-black border transition-all ${
-                              tempItem.tipe_setoran === sumber
-                                ? sumber === "COMMUNITY"
-                                  ? "bg-emerald-50 border-emerald-500 text-emerald-600" // Hijau untuk Community
-                                  : "bg-blue-50 border-blue-500 text-blue-600" // Biru untuk Ocean
-                                : "bg-white border-slate-200 text-slate-400 hover:border-slate-300"
-                            }`}
-                          >
-                            {sumber === "COMMUNITY" ? " COMMUNITY" : " OCEAN"}
-                          </button>
-                        ))}
+                {/* List Body */}
+                <div className="divide-y divide-slate-50 overflow-y-auto max-h-[60vh]">
+                  {loadingData ? (
+                    [...Array(8)].map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-100 animate-pulse flex-shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-3 w-36 bg-slate-100 rounded-full animate-pulse" />
+                          <div className="h-2.5 w-14 bg-slate-100 rounded-full animate-pulse" />
+                        </div>
+                        <div className="h-3 w-16 bg-slate-100 rounded-full animate-pulse" />
                       </div>
-                    </div>
-                    <div className="flex items-end">
-                      <button
-                        onClick={addToCart}
-                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
-                      >
-                        Tambah
-                      </button>
-                    </div>
-                  </div>
-
-                  {tempItem.tipe_harga === "CUSTOM" && (
-                    <div className="space-y-2 animate-in fade-in">
-                      <div className="flex justify-between items-end px-1">
-                        <label className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">
-                          Harga Manual (Rp)
-                        </label>
-                        {/* Range Harga yang lebih terlihat */}
-                        <span className="text-[9px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-                          Minimal {selectedBarang.batas_bawah.toLocaleString()}{" "}
-                          — Maksimal{" "}
-                          {selectedBarang.batas_atas.toLocaleString()}
-                        </span>
-                      </div>
-
-                      <input
-                        type="number"
-                        value={tempItem.harga_manual}
-                        onChange={(e) =>
-                          setTempItem({
-                            ...tempItem,
-                            harga_manual: e.target.value,
-                          })
-                        }
-                        className="w-full bg-white border-2 border-emerald-100 rounded-xl px-3 py-2 text-xs font-black text-emerald-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition-all"
-                        placeholder="Masukkan harga..."
-                      />
-
-                      <p className="text-[9px] text-slate-400 italic px-1 font-medium">
-                        *Pastikan harga sesuai dengan kondisi fisik sampah di
-                        lapangan.
+                    ))
+                  ) : filteredBarang.length === 0 ? (
+                    <div className="py-16 flex flex-col items-center gap-2 text-center">
+                      <PackageX size={28} className="text-slate-300" />
+                      <p className="text-slate-500 font-medium text-sm">
+                        Barang tidak ditemukan
+                      </p>
+                      <p className="text-slate-400 text-xs">
+                        Coba kata kunci lain
                       </p>
                     </div>
+                  ) : (
+                    filteredBarang.map((b) => (
+                      <BarangRow
+                        key={b.id_barang}
+                        barang={b}
+                        isSelected={selectedBarang?.id_barang === b.id_barang}
+                        onClick={handleBarangClick}
+                      />
+                    ))
                   )}
                 </div>
-              </div>
-            )}
 
-            <div className="bg-white rounded-xl border border-slate-100 p-5 space-y-4 shadow-sm">
-              <div className="flex items-center gap-2 border-b pb-3 text-[10px] font-black uppercase text-slate-400">
-                <ShoppingCart size={14} /> Keranjang
-              </div>
-              <div className="space-y-3 max-h-40 overflow-y-auto no-scrollbar">
-                {cart.length === 0 ? (
-                  <p className="text-center py-4 text-[10px] text-slate-300 font-bold uppercase italic">
-                    Kosong
-                  </p>
-                ) : (
-                  cart.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="flex justify-between items-center group"
-                    >
-                      <div>
-                        <p className="text-xs font-bold">
-                          {item.nama_barang}
-                          <span
-                            className={`ml-2 text-[8px] px-1.5 py-0.5 rounded font-black ${
-                              item.tipe_setoran === "COMMUNITY"
-                                ? "bg-emerald-100 text-emerald-600"
-                                : "bg-blue-100 text-blue-600"
-                            }`}
-                          >
-                            {item.tipe_setoran === "COMMUNITY"
-                              ? "COMMUNITY"
-                              : "OCEAN"}
-                          </span>
-                        </p>
-                        <p className="text-[10px] text-slate-800">
-                          {item.berat} kg × Rp{item.harga_deal.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <p className="text-xs font-black text-emerald-600">
-                          Rp{item.total_rp.toLocaleString()}
-                        </p>
-                        <button
-                          onClick={() =>
-                            setCart(cart.filter((_, i) => i !== idx))
-                          }
-                          className="text-slate-200 hover:text-red-500"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                {/* List Footer */}
+                {!loadingData && filteredBarang.length > 0 && (
+                  <div className="px-4 py-2 border-t border-slate-100 bg-slate-50">
+                    <p className="text-[10px] text-slate-500 font-medium">
+                      {filteredBarang.length} barang tersedia
+                    </p>
+                  </div>
                 )}
               </div>
-              <div className="pt-6 border-t border-slate-100 space-y-4">
-                {/* Baris Atas: Ringkasan Total */}
+            </div>
 
-                {/* Input Catatan */}
-                <div className="space-y-2 pt-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <MessageSquare size={12} /> Catatan Transaksi
-                  </label>
-                  <textarea
-                    value={catatan}
-                    onChange={(e) => setCatatan(e.target.value)}
-                    placeholder="Contoh: Sampah bersih, sudah dipilah..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500 min-h-[60px] resize-none transition-all"
-                  />
-                </div>
-                <div className="flex justify-between items-end">
-                  <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                      Total Transaksi
-                    </p>
-                    <p className="text-xl text-emerald-600 font-black tracking-tighter">
-                      Rp{totalTransaksi.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">
-                      {cart.length} Item Terpilih
-                    </p>
-                  </div>
-                </div>
-
-                {/* Baris Bawah: Kontrol Aksi */}
-                <div className="flex flex-col gap-3">
-                  {/* Pilihan Metode Bayar (Segmented Control) */}
-                  <div className="flex p-1 bg-slate-100 rounded-xl">
-                    {["TABUNG", "JUAL_LANGSUNG"].map((m) => (
-                      <button
-                        key={m}
-                        onClick={() => setMetodeBayar(m)}
-                        className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-                          metodeBayar === m
-                            ? "bg-white text-emerald-600 shadow-sm"
-                            : "text-slate-400 hover:text-slate-600"
-                        }`}
-                      >
-                        {/* Label tetap bisa menggunakan kata yang mudah dimengerti petugas */}
-                        {m === "TABUNG"
-                          ? "Masuk Saldo (Tabung)"
-                          : "Jual Langsung (Tunai)"}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Tombol Utama */}
-                  <button
-                    onClick={() => setShowConfirmModal(true)}
-                    disabled={cart.length === 0}
-                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98]"
-                  >
-                    SIMPAN SEMUA SETORAN
-                  </button>
-                </div>
-              </div>
+            {/* ── Desktop Cart Panel ── */}
+            <div className="hidden lg:block lg:col-span-4 sticky top-20">
+              <Cart
+                mode="panel"
+                {...sharedCartProps}
+                onCheckout={() => setShowConfirmModal(true)}
+              />
             </div>
           </div>
         </div>
-      </div>
 
-      <ConfirmSetorModal
-        isOpen={showConfirmModal}
-        onClose={() => setShowConfirmModal(false)}
-        onConfirm={submitSemuaSetoran}
-        data={{
-          nasabah_name: nasabah?.nama_lengkap,
-          total_rp: totalTransaksi,
-          items: cart,
-          metode_bayar: metodeBayar,
-          catatan_petugas: catatan,
-        }}
-        loading={loading}
-      />
+        {/* ── Mobile Sticky Bottom Bar ── */}
+        <div
+          className={`fixed bottom-0 left-0 right-0 z-30 lg:hidden px-4 py-3 bg-white border-t border-slate-100 shadow-2xl transition-transform duration-300 ${
+            cart.length > 0 ? "translate-y-0" : "translate-y-full"
+          }`}
+        >
+          <button
+            onClick={() => setShowCart(true)}
+            className="w-full py-3.5 bg-emerald-600 text-white rounded-2xl font-semibold flex items-center justify-between px-5 shadow-lg shadow-emerald-600/20 active:scale-[0.98] transition-all"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="bg-white text-emerald-600 text-xs font-semibold w-6 h-6 rounded-full flex items-center justify-center shadow-sm">
+                {cart.length}
+              </span>
+              <span className="text-sm">Lihat Keranjang</span>
+            </div>
+            <span className="text-sm font-semibold">
+              {new Intl.NumberFormat("id-ID", {
+                style: "currency",
+                currency: "IDR",
+                minimumFractionDigits: 0,
+              }).format(totalTransaksi)}
+            </span>
+          </button>
+        </div>
+
+        {/* ── Item Detail Sheet ── */}
+        {selectedBarang && (
+          <ItemDetailSheet
+            barang={selectedBarang}
+            tempItem={tempItem}
+            onTempItemChange={(changes) =>
+              setTempItem((prev) => ({ ...prev, ...changes }))
+            }
+            onAddToCart={addToCart}
+            onClose={() => setSelectedBarang(null)}
+          />
+        )}
+
+        {/* ── Mobile Cart ── */}
+        <div className="lg:hidden">
+          <Cart
+            mode="drawer"
+            isOpen={showCart}
+            onClose={() => setShowCart(false)}
+            {...sharedCartProps}
+            onCheckout={() => {
+              setShowCart(false);
+              setShowConfirmModal(true);
+            }}
+          />
+        </div>
+
+        {/* ── Confirm Modal ── */}
+        <ConfirmSetorModal
+          isOpen={showConfirmModal}
+          onClose={() => setShowConfirmModal(false)}
+          onConfirm={submitSemuaSetoran}
+          data={{
+            nasabah_name: nasabah?.nama_lengkap,
+            total_rp: totalTransaksi,
+            items: cart,
+            metode_bayar: metodeBayar,
+            catatan_petugas: catatan,
+          }}
+          loading={loading}
+        />
+      </div>
     </DashboardLayout>
   );
 }

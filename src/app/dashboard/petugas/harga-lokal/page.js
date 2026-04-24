@@ -3,22 +3,37 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
-// Import modal baru
-import HargaLokalModal from "@/components/HargaLokalModal";
+import HargaLokalModal from "@/components/petugas/harga-lokal/HargaLokalModal";
 import {
-  DollarSign,
+  Tag,
   Edit,
   Search,
+  LayoutGrid,
+  Recycle,
+  Wrench,
+  FileText,
+  Package,
+  Layers,
 } from "lucide-react";
 
 const CATEGORIES = [
-  { value: "SEMUA", label: "Semua Kategori", color: "slate" },
-  { value: "PLASTIK", label: "Plastik", color: "blue" },
-  { value: "LOGAM", label: "Logam", color: "gray" },
-  { value: "KERTAS", label: "Kertas", color: "yellow" },
-  { value: "LAINNYA", label: "Lainnya", color: "purple" },
-  { value: "CAMPURAN", label: "Campuran", color: "green" },
+  { value: "SEMUA", label: "Semua", icon: LayoutGrid },
+  { value: "PLASTIK", label: "Plastik", icon: Recycle },
+  { value: "KERTAS", label: "Kertas", icon: FileText },
+  { value: "LOGAM", label: "Logam", icon: Wrench },
+  { value: "LAINNYA", label: "Lainnya", icon: Layers },
+  { value: "CAMPURAN", label: "Campuran", icon: Package },
+   // ← tambah ini
 ];
+
+const CATEGORY_COLORS = {
+  PLASTIK: "bg-blue-50 text-blue-600",
+  KERTAS: "bg-amber-50 text-amber-600",
+  LOGAM: "bg-slate-100 text-slate-600",
+  LAINNYA: "bg-orange-50 text-orange-600",
+  CAMPURAN: "bg-purple-50 text-purple-600",
+  // ← tambah ini
+};
 
 export default function HargaLokalPage() {
   const [loading, setLoading] = useState(true);
@@ -26,8 +41,6 @@ export default function HargaLokalPage() {
   const [hargaLokalData, setHargaLokalData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("SEMUA");
-
-  // State baru untuk Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBarang, setSelectedBarang] = useState(null);
 
@@ -47,13 +60,11 @@ export default function HargaLokalPage() {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
-
       const masterJson = await masterRes.json();
       const lokalJson = await lokalRes.json();
-
       setMasterData(masterJson.data?.data || masterJson.data || []);
       setHargaLokalData(lokalJson.data || []);
-    } catch (err) {
+    } catch {
       toast.error("Gagal memuat data harga");
     } finally {
       setLoading(false);
@@ -64,35 +75,36 @@ export default function HargaLokalPage() {
     setSelectedBarang(barang);
     setIsModalOpen(true);
   };
-
   const handleCloseModal = (refresh) => {
     setIsModalOpen(false);
     setSelectedBarang(null);
     if (refresh === true) fetchData();
   };
 
-  const filteredData = Array.isArray(masterData) 
+  const filteredData = Array.isArray(masterData)
     ? masterData.filter((item) => {
-        const matchCategory = activeTab === "SEMUA" || item.kategori_utama === activeTab;
-        const matchSearch = item.nama_barang?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchCategory =
+          activeTab === "SEMUA" || item.kategori_utama === activeTab;
+        const matchSearch = item.nama_barang
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase());
         return matchCategory && matchSearch;
       })
     : [];
 
-  const formatRupiah = (num) => {
-    return new Intl.NumberFormat("id-ID", {
+  const formatRupiah = (num) =>
+    new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
     }).format(num);
-  };
 
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="p-6 animate-pulse space-y-4">
-          <div className="h-10 w-48 bg-gray-200 rounded"></div>
-          <div className="h-64 bg-gray-100 rounded-xl"></div>
+        <div className="p-6 space-y-4 animate-pulse">
+          <div className="h-8 w-48 bg-slate-100 rounded-xl" />
+          <div className="h-64 bg-slate-100 rounded-2xl" />
         </div>
       </DashboardLayout>
     );
@@ -100,98 +112,146 @@ export default function HargaLokalPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-5">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-emerald-50 rounded-xl">
+            <Tag className="w-5 h-5 text-emerald-500" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-              <DollarSign className="w-8 h-8 text-green-600" />
+            <h1 className="text-[16px] font-semibold text-slate-800">
               Harga Lokal Unit
             </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Atur harga beli sampah khusus unit Anda sesuai batas yang ditentukan pusat.
+            <p className="text-[11px] font-normal text-slate-500 mt-0.5">
+              Atur harga beli sampah khusus unit sesuai batas yang ditentukan
+              pusat.
             </p>
           </div>
         </div>
 
-        {/* Filter & Search */}
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-2 pb-2 overflow-x-auto">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat.value}
-                onClick={() => setActiveTab(cat.value)}
-                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
-                  activeTab === cat.value
-                    ? "bg-green-600 text-white shadow-md shadow-green-200"
-                    : "bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-slate-700 hover:bg-gray-50"
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
+        {/* Category Tabs + Search */}
+        <div className="space-y-3">
+          <div className="flex gap-1 overflow-x-auto no-scrollbar bg-slate-100 p-1 rounded-xl">
+            {CATEGORIES.map(({ value, label, icon: Icon }) => {
+              const isActive = activeTab === value;
+              return (
+                <button
+                  key={value}
+                  onClick={() => setActiveTab(value)}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] transition-all duration-200 whitespace-nowrap ${
+                    isActive
+                      ? "bg-white text-emerald-700 font-semibold shadow-sm"
+                      : "text-slate-500 font-medium hover:text-slate-700"
+                  }`}
+                >
+                  <Icon size={11} />
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search
+              size={14}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+            />
             <input
               type="text"
-              placeholder="Cari barang sampah..."
+              placeholder="Cari nama barang..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-green-500 transition-all"
+              className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-[13px] text-slate-700 placeholder:text-slate-400 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm"
             />
           </div>
         </div>
 
         {/* Table */}
-        <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead>
-                <tr className="bg-gray-50 dark:bg-slate-800/50 text-gray-600 dark:text-gray-400 font-bold uppercase text-[10px] tracking-widest">
-                  <th className="px-6 py-4 text-center w-16">No</th>
-                  <th className="px-6 py-4">Barang</th>
-                  <th className="px-6 py-4 text-center">Kategori</th>
-                  <th className="px-6 py-4 text-right">Harga Pusat</th>
-                  <th className="px-6 py-4 text-right bg-blue-50/30 dark:bg-blue-900/5">Batas Bawah</th>
-                  <th className="px-6 py-4 text-right bg-blue-50/30 dark:bg-blue-900/5">Batas Atas</th>
-                  <th className="px-6 py-4 text-right font-bold text-green-700 dark:text-green-400">Harga Lokal</th>
-                  <th className="px-6 py-4 text-center">Aksi</th>
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th className="px-5 py-3 text-center text-[10px] font-medium text-slate-500 w-12">
+                    No
+                  </th>
+                  <th className="px-5 py-3 text-[10px] font-medium text-slate-500">
+                    Barang
+                  </th>
+                  <th className="px-5 py-3 text-center text-[10px] font-medium text-slate-500">
+                    Kategori
+                  </th>
+                  <th className="px-5 py-3 text-right text-[10px] font-medium text-slate-500">
+                    Harga Pusat
+                  </th>
+                  <th className="px-5 py-3 text-right text-[10px] font-medium text-slate-500">
+                    Batas Bawah
+                  </th>
+                  <th className="px-5 py-3 text-right text-[10px] font-medium text-slate-500">
+                    Batas Atas
+                  </th>
+                  <th className="px-5 py-3 text-right text-[10px] font-semibold text-emerald-600">
+                    Harga Lokal
+                  </th>
+                  <th className="px-5 py-3 text-center text-[10px] font-medium text-slate-500">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-slate-800">
+              <tbody className="divide-y divide-slate-50">
                 {filteredData.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center text-gray-500 italic">
+                    <td
+                      colSpan="8"
+                      className="px-6 py-12 text-center text-[12px] font-medium text-slate-400"
+                    >
                       Data tidak ditemukan.
                     </td>
                   </tr>
                 ) : (
                   filteredData.map((item, index) => {
-                    const lokal = hargaLokalData.find((h) => h.barang_id === item.id_barang);
+                    const lokal = hargaLokalData.find(
+                      (h) => h.barang_id === item.id_barang,
+                    );
                     return (
-                      <tr key={item.id_barang} className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="px-6 py-4 text-center text-gray-400 font-medium">{index + 1}</td>
-                        <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">{item.nama_barang}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-700 text-[10px] font-black uppercase">
+                      <tr
+                        key={item.id_barang}
+                        className="hover:bg-slate-50 transition-colors"
+                      >
+                        <td className="px-5 py-3.5 text-center text-[12px] font-normal text-slate-500">
+                          {index + 1}
+                        </td>
+                        <td className="px-5 py-3.5 text-[13px] font-semibold text-slate-800">
+                          {item.nama_barang}
+                        </td>
+                        <td className="px-5 py-3.5 text-center">
+                          <span
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-medium ${CATEGORY_COLORS[item.kategori_utama] || "bg-slate-100 text-slate-600"}`}
+                          >
                             {item.kategori_utama}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right text-gray-500 italic">{formatRupiah(item.harga_pusat)}</td>
-                        <td className="px-6 py-4 text-right text-red-500/80 bg-blue-50/10 dark:bg-blue-900/5 font-medium">{formatRupiah(item.batas_bawah)}</td>
-                        <td className="px-6 py-4 text-right text-blue-500/80 bg-blue-50/10 dark:bg-blue-900/5 font-medium">{formatRupiah(item.batas_atas)}</td>
-                        <td className="px-6 py-4 text-right">
-                          <span className={`font-black ${lokal ? "text-green-600" : "text-gray-300"}`}>
-                            {lokal ? formatRupiah(lokal.harga_lokal) : "-"}
+                        <td className="px-5 py-3.5 text-right text-[12px] font-normal text-slate-500">
+                          {formatRupiah(item.harga_pusat)}
+                        </td>
+                        <td className="px-5 py-3.5 text-right text-[12px] font-medium text-red-500">
+                          {formatRupiah(item.batas_bawah)}
+                        </td>
+                        <td className="px-5 py-3.5 text-right text-[12px] font-medium text-blue-500">
+                          {formatRupiah(item.batas_atas)}
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <span
+                            className={`text-[13px] font-semibold ${lokal ? "text-emerald-600" : "text-slate-300"}`}
+                          >
+                            {lokal ? formatRupiah(lokal.harga_lokal) : "—"}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-5 py-3.5">
                           <div className="flex justify-center">
                             <button
                               onClick={() => handleOpenModal(item)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
                               title="Edit Harga"
                             >
                               <Edit className="w-4 h-4" />
@@ -205,15 +265,26 @@ export default function HargaLokalPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Footer count */}
+          {filteredData.length > 0 && (
+            <div className="px-5 py-2.5 border-t border-slate-100 bg-slate-50">
+              <p className="text-[10px] font-medium text-slate-500">
+                {filteredData.length} barang tersedia
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Render Modal */}
       <HargaLokalModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         barang={selectedBarang}
-        currentLokal={hargaLokalData.find(h => h.barang_id === selectedBarang?.id_barang)?.harga_lokal}
+        currentLokal={
+          hargaLokalData.find((h) => h.barang_id === selectedBarang?.id_barang)
+            ?.harga_lokal
+        }
       />
     </DashboardLayout>
   );

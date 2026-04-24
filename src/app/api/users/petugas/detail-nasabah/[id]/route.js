@@ -57,6 +57,31 @@ export async function GET(request, { params }) {
       select: { total_rp: true, metode_bayar: true }
     });
 
+    // Hitung total berat sampah dari semua detail setor
+    const allDetailSetor = await prisma.detailSetor.findMany({
+      where: {
+        transaksi: { nasabah_id: nasabahId }
+      },
+      select: { berat: true }
+    });
+
+    // Hitung berat per kategori sampah
+    const detailSetorByKategori = await prisma.detailSetor.findMany({
+      where: {
+        transaksi: { nasabah_id: nasabahId }
+      },
+      select: {
+        berat: true,
+        barang: { select: { kategori_utama: true } }
+      }
+    });
+
+    const beratPerKategori = detailSetorByKategori.reduce((acc, item) => {
+      const kategori = item.barang?.kategori_utama || 'LAINNYA';
+      acc[kategori] = (acc[kategori] || 0) + Number(item.berat);
+      return acc;
+    }, {});
+
     const allTarik = await prisma.transaksiTarik.findMany({
       where: { nasabah_id: nasabahId },
       select: { jumlah_tarik: true }
@@ -69,7 +94,10 @@ export async function GET(request, { params }) {
         .filter(s => s.metode_bayar === 'TABUNG')
         .reduce((sum, s) => sum + Number(s.total_rp), 0),
       totalNilaiTarik: allTarik
-        .reduce((sum, t) => sum + Number(t.jumlah_tarik), 0)
+        .reduce((sum, t) => sum + Number(t.jumlah_tarik), 0),
+      totalBeratSampah: allDetailSetor
+        .reduce((sum, d) => sum + Number(d.berat), 0),
+      beratPerKategori
     };
 
     return NextResponse.json({

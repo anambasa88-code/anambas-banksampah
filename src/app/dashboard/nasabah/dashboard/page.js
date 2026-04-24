@@ -4,15 +4,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
-  Wallet,
-  Package,
-  TrendingUp,
-  History,
-  Waves,
-  Users as UsersRound,
-  Trash2,
-  ArrowUpRight,
-  ArrowDownRight,
+  Wallet, Package, TrendingUp, History, Waves,
+  Users as UsersRound, Trash2, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 
 export default function NasabahDashboard() {
@@ -67,6 +60,7 @@ export default function NasabahDashboard() {
     fetchDashboard();
   }, []);
 
+
   // Format currency
   const formatRupiah = (num) => {
     return new Intl.NumberFormat("id-ID", {
@@ -99,7 +93,7 @@ export default function NasabahDashboard() {
 
   const {
     total_kg = 0,
-    total_rp = 0,
+    saldo_aktif = 0,
     per_tipe = {},
     per_kategori = {},
     total_transaksi_setor = 0,
@@ -138,7 +132,7 @@ export default function NasabahDashboard() {
               </div>
               <p className="text-sm opacity-90 mb-1">Saldo Saat Ini</p>
               <p className="text-2xl md:text-3xl font-bold">
-                {formatRupiah(total_rp)}
+                {formatRupiah(saldo_aktif)}
               </p>
             </div>
           </div>

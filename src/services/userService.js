@@ -3,15 +3,15 @@ import bcrypt from "bcryptjs";
 import { logService } from "./logService";
 
 const UNIT_PREFIXES = {
-  1: "MTK",
-  2: "MBS",
-  3: "JMJ",
-  4: "KMS",
-  5: "LDK",
-  6: "KBU",
-  7: "TBS",
-  8: "TKC",
-  9: "PSN",
+  1: "KBU",
+  2: "TLB",
+  3: "TLK",
+  4: "LGR",
+  5: "CND",
+  6: "KMR",
+  7: "LDK",
+  8: "PSN",
+  9: "BYT",
 };
 
 const ROLE_CODES = {
@@ -202,6 +202,7 @@ export const userService = {
       throw error;
     }
   },
+
   async createPetugas(data, actorId, actorRole = "ADMIN") {
     try {
       const { nama_lengkap, jenis_kelamin, unit_id, nik } = data;
@@ -424,6 +425,65 @@ export const userService = {
         unit: { select: { nama_unit: true } },
       },
     });
+  },
+
+  async updateNasabah(id_user, data, actorRole, actorBankSampahId) {
+    // Validasi: Petugas boleh edit nasabah di unit yang sama
+    if (actorRole !== "PETUGAS" && actorRole !== "ADMIN") {
+      throw new Error("Hanya Petugas atau Admin yang dapat mengubah data nasabah.");
+    }
+
+    const { nama_lengkap, alamat, desa, nik, jenis_kelamin } = data;
+
+    // 1. Cek nasabah ada dan di unit yang sama (untuk petugas)
+    const existingNasabah = await prisma.user.findUnique({
+      where: { id_user: parseInt(id_user) },
+    });
+
+    if (!existingNasabah) {
+      throw new Error("Nasabah tidak ditemukan.");
+    }
+
+    if (existingNasabah.peran !== "NASABAH") {
+      throw new Error("User ini bukan nasabah.");
+    }
+
+    if (actorRole === "PETUGAS" && existingNasabah.bank_sampah_id !== actorBankSampahId) {
+      throw new Error("Anda tidak dapat mengedit nasabah dari unit bank sampah lain.");
+    }
+
+    // 2. Cek duplikasi NIK (jika NIK diisi)
+    if (nik && nik.trim() !== "") {
+      const duplicateNIK = await prisma.user.findFirst({
+        where: {
+          nik: nik.trim(),
+          NOT: { id_user: parseInt(id_user) }, // Kecuali nasabah yang sedang diedit
+        },
+      });
+
+      if (duplicateNIK) {
+        throw new Error("NIK sudah terdaftar pada nasabah atau petugas lain.");
+      }
+    }
+
+    // 3. Mapping Enum Jenis Kelamin
+    let finalJenisKelamin = jenis_kelamin;
+    if (jenis_kelamin === "L") finalJenisKelamin = "LAKI_LAKI";
+    if (jenis_kelamin === "P") finalJenisKelamin = "PEREMPUAN";
+
+    // 4. Eksekusi Update
+    const updated = await prisma.user.update({
+      where: { id_user: parseInt(id_user) },
+      data: {
+        nama_lengkap: nama_lengkap?.trim(),
+        alamat: alamat?.trim() || null,
+        desa: desa?.trim() || null,
+        nik: nik?.trim() || null,
+        jenis_kelamin: finalJenisKelamin,
+      },
+    });
+
+    return updated;
   },
 
   async updatePetugas(id_user, data, actorRole) {

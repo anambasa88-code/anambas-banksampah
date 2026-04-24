@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
-import TambahPetugasModal from "@/components/TambahPetugasModal";
+import TambahPetugasModal from "@/components/admin/petugas/TambahPetugasModal";
 import { Users, Plus, ChevronLeft, ChevronRight, Edit, Power, RefreshCw, AlertCircle, X } from "lucide-react";
 
 export default function DaftarPetugasPage() {

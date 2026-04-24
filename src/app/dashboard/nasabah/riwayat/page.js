@@ -7,7 +7,7 @@ import { History, ArrowUpRight, ArrowDownRight, Calendar, Package, DollarSign, R
 
 export default function RiwayatNasabah() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState([]);
+  const [allData, setAllData] = useState([]);
   const [filter, setFilter] = useState("SEMUA");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({
@@ -15,6 +15,13 @@ export default function RiwayatNasabah() {
     limit: 20,
     total: 0,
     totalPages: 0
+  });
+  const [summary, setSummary] = useState({
+    totalSetor: 0,
+    totalTarik: 0,
+    saldoAktif: 0,
+    totalBeratSampah: 0,
+    beratPerKategori: {},
   });
 
   const fetchRiwayat = async () => {
@@ -27,26 +34,39 @@ export default function RiwayatNasabah() {
         return;
       }
 
-      const res = await fetch(
-        `/api/users/nasabah/riwayat?type=${filter}&page=${page}&limit=20`,
-        {
+      // Fetch riwayat dan summary dashboard secara paralel
+      const [riwayatRes, dashboardRes] = await Promise.all([
+        fetch(`/api/users/nasabah/riwayat?type=SEMUA&page=1&limit=1000`, {
           headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+        }),
+        fetch("/api/users/nasabah/dashboard", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
 
-      if (!res.ok) {
-        if (res.status === 401) {
+      if (!riwayatRes.ok || !dashboardRes.ok) {
+        if (riwayatRes.status === 401 || dashboardRes.status === 401) {
           toast.error("Sesi berakhir, silakan login ulang");
           localStorage.clear();
           window.location.href = "/login";
           return;
         }
-        throw new Error("Gagal mengambil riwayat");
+        throw new Error("Gagal mengambil data");
       }
 
-      const json = await res.json();
-      setData(json.data || []);
-      setPagination(json.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 });
+      const riwayatJson = await riwayatRes.json();
+      const dashboardJson = await dashboardRes.json();
+      
+      setAllData(riwayatJson.data || []);
+
+      // Pakai summary dari dashboard agar konsisten
+      setSummary({
+        totalSetor: dashboardJson.total_transaksi_setor || 0,
+        totalTarik: dashboardJson.total_transaksi_tarik || 0,
+        saldoAktif: dashboardJson.saldo_aktif || 0,
+        totalBeratSampah: dashboardJson.total_kg || 0,
+        beratPerKategori: dashboardJson.per_kategori || {},
+      });
     } catch (err) {
       console.error(err);
       toast.error("Gagal memuat riwayat transaksi");
@@ -56,12 +76,12 @@ export default function RiwayatNasabah() {
   };
 
   useEffect(() => {
-    setPage(1);
-  }, [filter]);
+    fetchRiwayat();
+  }, []);
 
   useEffect(() => {
-    fetchRiwayat();
-  }, [filter, page]);
+    setPage(1);
+  }, [filter]);
 
   const formatRupiah = (num) => {
     return new Intl.NumberFormat("id-ID", {
@@ -82,22 +102,20 @@ export default function RiwayatNasabah() {
     }).format(date);
   };
 
-  const totalSetor = data.filter((d) => d.jenis === "SETOR").length;
-  const totalTarik = data.filter((d) => d.jenis === "TARIK").length;
+  // Filter data untuk tabel
+  const filteredData = allData.filter((d) => {
+    if (filter === "SEMUA") return true;
+    return d.jenis === filter;
+  });
 
-  const totalNilaiSetor = data
-    .filter((d) => d.jenis === "SETOR" && d.metode_bayar === "TABUNG")
-    .reduce((sum, d) => sum + (Number(d.total_rp) || 0), 0);
-
-  // FIX: pakai jumlah_tarik bukan jumlah
-  const totalNilaiTarik = data
-    .filter((d) => d.jenis === "TARIK")
-    .reduce((sum, d) => sum + (Number(d.jumlah_tarik) || 0), 0);
+  // Pagination untuk tabel
+  const paginatedData = filteredData.slice((page - 1) * 20, page * 20);
+  const totalPages = Math.ceil(filteredData.length / 20);
+  const total = filteredData.length;
 
   return (
     <DashboardLayout>
       <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
-
         <div className="space-y-2">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
             <History className="w-8 h-8 text-green-600 dark:text-green-400" />
@@ -108,44 +126,45 @@ export default function RiwayatNasabah() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
-                <Package className="w-5 h-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Setor</p>
-                <p className="text-lg font-bold text-gray-800 dark:text-white">{totalSetor}</p>
-              </div>
+        {/* Stats Grid - tidak berubah saat filter */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
+          {/* Total Setor dengan rincian kategori */}
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Setor</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-white mb-2">{summary.totalSetor}x transaksi</p>
+            <div className="space-y-1 text-[11px]">
+              {(() => {
+                const kategoriList = ['PLASTIK', 'LOGAM', 'KERTAS', 'LAINNYA', 'CAMPURAN'];
+                const kategoriLabels = {
+                  PLASTIK: 'Plastik',
+                  LOGAM: 'Logam',
+                  KERTAS: 'Kertas',
+                  LAINNYA: 'Lainnya',
+                  CAMPURAN: 'Campuran',
+                };
+                return kategoriList.map(kat => {
+                  const berat = summary.beratPerKategori?.[kat] || 0;
+                  return (
+                    <div key={kat} className="flex justify-between items-center">
+                      <span className="text-slate-500">{kategoriLabels[kat]}</span>
+                      <span className="font-medium text-slate-700 dark:text-slate-300">
+                        {Number(berat).toLocaleString('id-ID')} kg
+                      </span>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
-
-          <div className="p-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Tarik</p>
-                <p className="text-lg font-bold text-gray-800 dark:text-white">{totalTarik}</p>
-              </div>
-            </div>
+          {/* Total Tarik */}
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Tarik</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-white">{summary.totalTarik}x transaksi</p>
           </div>
-
-          <div className="p-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Masuk Saldo</p>
-            <p className="text-sm font-bold text-green-600 dark:text-green-400">
-              {formatRupiah(totalNilaiSetor)}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">via Tabung</p>
-          </div>
-
-          <div className="p-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Nilai Tarik</p>
-            <p className="text-sm font-bold text-orange-600 dark:text-orange-400">
-              {formatRupiah(totalNilaiTarik)}
-            </p>
+          {/* Saldo */}
+          <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 border border-emerald-100 dark:border-emerald-800">
+            <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider mb-1">Saldo Saat Ini</p>
+            <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{formatRupiah(summary.saldoAktif)}</p>
           </div>
         </div>
 
@@ -184,7 +203,7 @@ export default function RiwayatNasabah() {
               <RefreshCw className="w-8 h-8 animate-spin text-green-600 dark:text-green-400 mx-auto mb-3" />
               <p className="text-gray-500 dark:text-gray-400">Memuat riwayat...</p>
             </div>
-          ) : data.length === 0 ? (
+          ) : filteredData.length === 0 ? (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">
               <History className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p className="font-medium">Belum ada transaksi</p>
@@ -201,7 +220,7 @@ export default function RiwayatNasabah() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                  {data.map((item, index) => (
+                  {paginatedData.map((item, index) => (
                     <tr
                       key={`${item.jenis}-${item.id_setor || item.id}-${index}`}
                       className="hover:bg-gray-50 dark:hover:bg-slate-800/50"
@@ -298,10 +317,10 @@ export default function RiwayatNasabah() {
           )}
         </div>
 
-        {!loading && data.length > 0 && (
+        {!loading && filteredData.length > 0 && (
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Halaman {pagination.page} dari {pagination.totalPages} ({pagination.total} transaksi)
+              Halaman {page} dari {totalPages} ({total} transaksi)
             </p>
 
             <div className="flex gap-2">
@@ -316,7 +335,7 @@ export default function RiwayatNasabah() {
 
               <button
                 onClick={() => setPage(page + 1)}
-                disabled={page >= pagination.totalPages}
+                disabled={page >= totalPages}
                 className="px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 Next

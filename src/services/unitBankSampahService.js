@@ -31,33 +31,6 @@ export async function getUnitById(id_unit) {
   return unit;
 }
 
-// WRITE
-export async function createUnit(adminId, data) {
-  const { nama_unit, alamat_unit } = data;
-
-  if (!nama_unit?.trim() || !alamat_unit?.trim()) {
-    throw new Error('Nama unit dan alamat wajib diisi');
-  }
-
-  return prisma.$transaction(async (tx) => {
-    const created = await tx.unitBankSampah.create({
-      data: {
-        nama_unit: nama_unit.trim(),
-        alamat_unit: alamat_unit.trim(),
-      },
-    });
-
-    await logService.record(
-      adminId,
-      'CREATE_UNIT_BANK_SAMPAH',
-      `Menambah unit "${nama_unit}" (ID: ${created.id_unit})`,
-      created
-    );
-
-    return created;
-  });
-}
-
 export async function updateUnit(adminId, id_unit, data) {
   const id = Number(id_unit);
   if (isNaN(id) || id < 1) throw new Error('ID tidak valid');

@@ -12,11 +12,11 @@ const CATEGORIES = [
   { value: "CAMPURAN", label: "Campuran" }
 ];
 
-export default function MasterSampahModal({ isOpen, onClose, editData }) {
+export default function MasterSampahModal({ isOpen, onClose, editData, defaultKategori = "PLASTIK" }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nama_barang: "",
-    kategori_utama: "PLASTIK",
+    kategori_utama: defaultKategori,
     keterangan_pusat: "",
     harga_pusat: "",
     batas_bawah: "",
@@ -27,7 +27,7 @@ export default function MasterSampahModal({ isOpen, onClose, editData }) {
     if (editData) {
       setFormData({
         nama_barang: editData.nama_barang || "",
-        kategori_utama: editData.kategori_utama || "PLASTIK",
+        kategori_utama: editData.kategori_utama || defaultKategori,
         keterangan_pusat: editData.keterangan_pusat || "",
         harga_pusat: editData.harga_pusat?.toString() || "",
         batas_bawah: editData.batas_bawah?.toString() || "",
@@ -36,7 +36,7 @@ export default function MasterSampahModal({ isOpen, onClose, editData }) {
     } else {
       setFormData({
         nama_barang: "",
-        kategori_utama: "PLASTIK",
+        kategori_utama: defaultKategori,
         keterangan_pusat: "",
         harga_pusat: "",
         batas_bawah: "",
