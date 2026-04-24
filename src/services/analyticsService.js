@@ -1,6 +1,19 @@
 // src/services/analyticsService.js
 import prisma from "../lib/prisma";
 
+// Helper to limit concurrent DB queries and prevent connection pool exhaustion
+const MAX_CONCURRENT = 5;
+
+async function runBatched(promises, batchSize = MAX_CONCURRENT) {
+  const results = [];
+  for (let i = 0; i < promises.length; i += batchSize) {
+    const batch = promises.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch);
+    results.push(...batchResults);
+  }
+  return results;
+}
+
 export const analyticsService = {
   // src/services/analyticsService.js - getNasabahSummary Fixed
   async getNasabahSummary(nasabahId, startDate = null, endDate = null) {
@@ -27,7 +40,7 @@ export const analyticsService = {
       metodeBayarData,
       metodeBayarRupiah,
       totalTarikRupiah,
-    ] = await Promise.all([
+    ] = await runBatched([
       // Per tipe → DetailSetor
       prisma.detailSetor.groupBy({
         by: ["tipe_setoran"],
@@ -170,7 +183,7 @@ export const analyticsService = {
       totalTarikRupiah,
       totalTabungOnly,
       sampahTerkumpul,
-    ] = await Promise.all([
+    ] = await runBatched([
       // tipe_setoran → detailSetor
       prisma.detailSetor.groupBy({
         by: ["tipe_setoran"],
@@ -332,7 +345,7 @@ export const analyticsService = {
         globalTabungOnly,
         units,
         globalSampahTerkumpul,
-      ] = await Promise.all([
+      ] = await runBatched([
         // tipe_setoran → DetailSetor
         prisma.detailSetor.groupBy({
           by: ["tipe_setoran"],
@@ -401,9 +414,9 @@ export const analyticsService = {
         masterSampah.map((b) => [b.id_barang, b.kategori_utama]),
       );
 
-      // Per unit
-      const perUnitData = await Promise.all(
-        units.map(async (unit) => {
+      // Per unit - process sequentially to prevent connection pool exhaustion
+      const perUnitData = [];
+      for (const unit of units) {
           const unitWhereSetor = {
             nasabah: { bank_sampah_id: unit.id_unit },
             ...whereSetor,
@@ -432,7 +445,7 @@ export const analyticsService = {
             uMetodeRupiah,
             uTarikRupiah,
             uTabungOnly,
-          ] = await Promise.all([
+          ] = await runBatched([
             prisma.detailSetor.groupBy({
               by: ["tipe_setoran"],
               where: unitWhereDetail,
@@ -481,7 +494,7 @@ export const analyticsService = {
             }),
           ]);
 
-          return {
+          perUnitData.push({
             unit_id: unit.id_unit,
             nama_unit: unit.nama_unit,
             total_kg: formatWeight(uBerat._sum.berat),
@@ -523,9 +536,8 @@ export const analyticsService = {
             saldo_aktif:
               formatWeight(uTabungOnly._sum.total_rp) -
               formatWeight(uTarikRupiah._sum.jumlah_tarik),
-          };
-        }),
-      );
+          });
+      }
 
       return {
         global: {
