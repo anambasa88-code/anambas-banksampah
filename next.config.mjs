@@ -5,13 +5,17 @@ const withPWAConfig = withPWA({
   register: true,
   skipWaiting: true,
   cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
   disable: process.env.NODE_ENV === 'development',
+  fallbackRoutes: {
+    document: '/offline.html', // ← ini
+  },
 })
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactCompiler: true,
-  turbopack: {}, // ← tambah ini
+  turbopack: {},
 }
 
 export default withPWAConfig(nextConfig)
