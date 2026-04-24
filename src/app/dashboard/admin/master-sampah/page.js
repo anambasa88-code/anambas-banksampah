@@ -178,7 +178,7 @@ export default function MasterSampahPage() {
           />
         </div>
 
-        {/* Table */}
+        {/* Data Display - Cards for Mobile, Table for Desktop */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
 
           {paginatedData.length === 0 ? (
@@ -189,8 +189,8 @@ export default function MasterSampahPage() {
             </div>
           ) : (
             <>
-              {/* Table Head */}
-              <div className="grid grid-cols-[36px_2fr_2fr_1fr_1fr_1fr_76px_48px] gap-3 px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+              {/* Desktop Table Header - Hidden on Mobile */}
+              <div className="hidden md:grid grid-cols-[36px_2fr_2fr_1fr_1fr_1fr_76px_48px] gap-3 px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
                 {[
                   { label: "No", align: "" },
                   { label: "Nama Barang", align: "" },
@@ -207,8 +207,8 @@ export default function MasterSampahPage() {
                 ))}
               </div>
 
-              {/* Table Rows */}
-              <div className="divide-y divide-slate-50 dark:divide-slate-800">
+              {/* Desktop Table Rows - Hidden on Mobile */}
+              <div className="hidden md:block divide-y divide-slate-50 dark:divide-slate-800">
                 {paginatedData.map((item, index) => {
                   const style = CATEGORY_STYLE[item.kategori_utama] || CATEGORY_STYLE.LAINNYA;
                   return (
@@ -261,6 +261,64 @@ export default function MasterSampahPage() {
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                       </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Mobile Row Layout - Simplified horizontal rows */}
+              <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+                {paginatedData.map((item, index) => {
+                  const style = CATEGORY_STYLE[item.kategori_utama] || CATEGORY_STYLE.LAINNYA;
+                  return (
+                    <div
+                      key={item.id_barang}
+                      className="flex items-center gap-2 px-3 py-3 hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition-colors"
+                    >
+                      {/* No */}
+                      <span className="text-[11px] text-slate-400 font-medium w-5 shrink-0">
+                        {(currentPage - 1) * itemsPerPage + index + 1}
+                      </span>
+
+                      {/* Dot indicator */}
+                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
+
+                      {/* Nama Barang + Keterangan - Flex grow */}
+                      <div className="flex-1 min-w-0 pr-2">
+                        <p className="text-[13px] font-semibold text-slate-800 dark:text-white leading-tight break-words">
+                          {item.nama_barang}
+                        </p>
+                        <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                          {item.keterangan_pusat || "-"}
+                        </p>
+                      </div>
+
+                      {/* Harga Pusat + Batas */}
+                      <div className="shrink-0 text-right min-w-[80px]">
+                        <span className="text-[12px] font-semibold text-emerald-600 block">
+                          {formatRupiah(item.harga_pusat)}
+                        </span>
+                        <span className="text-[9px] text-slate-400 block">
+                          ↓{formatRupiah(item.batas_bawah)} ↑{formatRupiah(item.batas_atas)}
+                        </span>
+                      </div>
+
+                      {/* Status */}
+                      <span className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-semibold shrink-0 ${item.is_active
+                          ? "bg-emerald-50 text-emerald-600"
+                          : "bg-red-50 text-red-500"
+                        }`}>
+                        {item.is_active ? "Aktif" : "Nonaktif"}
+                      </span>
+
+                      {/* Edit Button */}
+                      <button
+                        onClick={() => handleEdit(item)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all shrink-0"
+                        title="Edit"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   );
                 })}

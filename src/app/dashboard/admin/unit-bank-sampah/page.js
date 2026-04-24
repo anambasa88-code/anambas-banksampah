@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import UnitBankSampahModal from "@/components/admin/bank-sampah/UnitBankSampahModal";
-import { Building2, Plus, Pencil, MapPin } from "lucide-react";
+import { Building2, Pencil, MapPin } from "lucide-react";
 
 export default function UnitBankSampahPage() {
   const [loading, setLoading] = useState(true);
@@ -55,11 +55,6 @@ export default function UnitBankSampahPage() {
     setShowModal(true);
   };
 
-  const handleAdd = () => {
-    setEditData(null);
-    setShowModal(true);
-  };
-
   const handleModalClose = (shouldRefresh) => {
     setShowModal(false);
     setEditData(null);
@@ -76,7 +71,7 @@ export default function UnitBankSampahPage() {
                 <div className="h-7 w-56 bg-slate-200 dark:bg-slate-700 rounded-lg" />
                 <div className="h-4 w-72 bg-slate-100 dark:bg-slate-800 rounded-md" />
               </div>
-              <div className="h-9 w-36 bg-slate-200 dark:bg-slate-700 rounded-xl" />
+              {/* Button removed - adding units not allowed */}
             </div>
             <div className="space-y-3">
               {[...Array(4)].map((_, i) => (
@@ -109,13 +104,7 @@ export default function UnitBankSampahPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleAdd}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-semibold rounded-xl transition-all shadow-md shadow-emerald-600/20"
-          >
-            <Plus className="w-4 h-4" />
-            Tambah Unit
-          </button>
+        
         </div>
 
         {/* Content */}
@@ -129,16 +118,10 @@ export default function UnitBankSampahPage() {
                 Belum ada unit bank sampah
               </p>
               <p className="text-[12px] text-slate-400 mt-1">
-                Mulai dengan menambahkan unit pertama
+                Hubungi developer untuk setup unit baru
               </p>
             </div>
-            <button
-              onClick={handleAdd}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-semibold rounded-xl transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              Tambah Unit Pertama
-            </button>
+            {/* Tambah unit tidak diizinkan - hubungi developer */}
           </div>
         ) : (
           <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">

@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getAllUnits } from "@/services/unitBankSampahService";
+// import { createUnit } from "@/services/unitBankSampahService"; // Dinonaktifkan - penambahan unit tidak diizinkan
 
 export async function GET(request) {
   try {
@@ -27,18 +28,9 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  try {
-    const user = await getCurrentUser(request);
-    if (!user || user.peran !== "ADMIN") {
-      return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const created = await createUnit(user.id_user, body);
-
-    return NextResponse.json({ success: true, data: created }, { status: 201 });
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: err.message }, { status: 400 });
-  }
+  // Menambah unit dinonaktifkan - hubungi developer untuk setup unit baru
+  return NextResponse.json(
+    { error: "Penambahan unit dinonaktifkan. Hubungi developer untuk setup unit baru." },
+    { status: 403 }
+  );
 }
