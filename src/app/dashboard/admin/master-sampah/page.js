@@ -232,15 +232,15 @@ export default function MasterSampahPage() {
                       </span>
 
                       <span className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 text-right">
-                        {formatRupiah(item.harga_pusat)}
+                        {formatRupiah(item.harga_pusat)} / Kg
                       </span>
 
                       <span className="text-[12px] text-slate-400 text-right">
-                        {formatRupiah(item.batas_bawah)}
+                        {formatRupiah(item.batas_bawah)} / Kg
                       </span>
 
                       <span className="text-[12px] text-slate-400 text-right">
-                        {formatRupiah(item.batas_atas)}
+                        {formatRupiah(item.batas_atas)} / Kg
                       </span>
 
                       <div>

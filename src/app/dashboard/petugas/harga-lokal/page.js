@@ -232,13 +232,13 @@ export default function HargaLokalPage() {
                           </span>
                         </td>
                         <td className="px-5 py-3.5 text-right text-[12px] font-normal text-slate-500">
-                          {formatRupiah(item.harga_pusat)}
+                          {formatRupiah(item.harga_pusat)} / Kg
                         </td>
                         <td className="px-5 py-3.5 text-right text-[12px] font-medium text-red-500">
-                          {formatRupiah(item.batas_bawah)}
+                          {formatRupiah(item.batas_bawah)} / Kg
                         </td>
                         <td className="px-5 py-3.5 text-right text-[12px] font-medium text-blue-500">
-                          {formatRupiah(item.batas_atas)}
+                          {formatRupiah(item.batas_atas)} / Kg
                         </td>
                         <td className="px-5 py-3.5 text-right">
                           <span

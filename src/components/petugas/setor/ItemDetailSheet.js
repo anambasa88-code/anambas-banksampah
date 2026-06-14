@@ -29,7 +29,12 @@ export default function ItemDetailSheet({
   const previewTotal = getHargaPreview() * (Number(berat) || 0);
 
   const PRICE_OPTIONS = [
-    { key: "SISTEM", label: "Sistem", value: formatRp(barang.harga_aktif), available: true },
+    {
+      key: "SISTEM",
+      label: "Sistem",
+      value: formatRp(barang.harga_aktif),
+      available: true,
+    },
     {
       key: "LOKAL",
       label: "Lokal",
@@ -52,7 +57,6 @@ export default function ItemDetailSheet({
         </div>
 
         <div className="px-5 py-4 space-y-4 max-h-[85vh] overflow-y-auto">
-
           {/* Header */}
           <div className="flex items-start justify-between">
             <div>
@@ -81,19 +85,25 @@ export default function ItemDetailSheet({
                 <button
                   key={key}
                   disabled={!available}
-                  onClick={() => onTempItemChange({ tipe_harga: key, harga_manual: "" })}
+                  onClick={() =>
+                    onTempItemChange({ tipe_harga: key, harga_manual: "" })
+                  }
                   className={`p-3 rounded-2xl border-2 flex flex-col items-center gap-1 transition-all ${
                     !available
                       ? "opacity-40 cursor-not-allowed border-slate-100 bg-slate-50"
                       : tipe_harga === key
-                      ? "border-emerald-400 bg-emerald-50 shadow-sm"
-                      : "border-slate-100 bg-white hover:border-emerald-200"
+                        ? "border-emerald-400 bg-emerald-50 shadow-sm"
+                        : "border-slate-100 bg-white hover:border-emerald-200"
                   }`}
                 >
-                  <span className={`text-[10px] font-medium ${tipe_harga === key ? "text-emerald-600" : "text-slate-500"}`}>
+                  <span
+                    className={`text-[10px] font-medium ${tipe_harga === key ? "text-emerald-600" : "text-slate-500"}`}
+                  >
                     {label}
                   </span>
-                  <span className={`text-[11px] font-semibold ${tipe_harga === key ? "text-emerald-700" : "text-slate-700"}`}>
+                  <span
+                    className={`text-[11px] font-semibold ${tipe_harga === key ? "text-emerald-700" : "text-slate-700"}`}
+                  >
                     {value}
                   </span>
                 </button>
@@ -115,7 +125,9 @@ export default function ItemDetailSheet({
               <input
                 type="number"
                 value={harga_manual}
-                onChange={(e) => onTempItemChange({ harga_manual: e.target.value })}
+                onChange={(e) =>
+                  onTempItemChange({ harga_manual: e.target.value })
+                }
                 className="w-full bg-white border-2 border-emerald-100 rounded-2xl px-4 py-3 text-[13px] font-medium text-slate-800 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400"
                 placeholder="Masukkan harga..."
               />
@@ -132,7 +144,13 @@ export default function ItemDetailSheet({
                 type="number"
                 step="0.01"
                 value={berat}
-                onChange={(e) => onTempItemChange({ berat: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  if (/^\d*\.?\d{0,2}$/.test(value)) {
+                    onTempItemChange({ berat: value });
+                  }
+                }}
                 className="w-full bg-white border-2 border-slate-100 rounded-2xl px-4 py-3 text-[13px] font-medium text-slate-800 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400"
                 placeholder="0.00"
               />

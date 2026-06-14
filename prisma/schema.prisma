@@ -64,10 +64,10 @@ model MasterSampah {
   batas_atas       Decimal          @db.Decimal(15, 2)
   batas_bawah      Decimal          @db.Decimal(15, 2)
   is_active        Boolean          @default(true)
-  detail_plastik   DetailPlastik?
+
   harga_lokal_unit HargaLokalUnit[]
   history_harga    HistoryHarga[]
-  detail_setor     DetailSetor[]    // ← hanya ini yang tersisa
+  detail_setor     DetailSetor[]
 
   @@index([kategori_utama])
   @@index([is_active])
@@ -101,16 +101,6 @@ model HistoryHarga {
   @@map("history_harga")
 }
 
-model DetailPlastik {
-  barang_id       Int           @id
-  kode_daur_ulang KodeDaurUlang
-  nama_kimia      String        @db.VarChar(100)
-  klasifikasi     String        @db.VarChar(50)
-  barang          MasterSampah  @relation(fields: [barang_id], references: [id_barang])
-
-  @@map("detail_plastik")
-}
-
 model TransaksiSetor {
   id_setor        String        @id @db.VarChar(30)
   nasabah_id      Int
@@ -122,7 +112,7 @@ model TransaksiSetor {
   waktu           DateTime      @default(now())
   nasabah         User          @relation("SetorNasabah", fields: [nasabah_id], references: [id_user])
   petugas         User          @relation("SetorPetugas", fields: [petugas_id], references: [id_user])
-  detail_items    DetailSetor[] // relasi ke detail
+  detail_items    DetailSetor[]
 
   @@index([nasabah_id])
   @@index([petugas_id])
@@ -138,7 +128,7 @@ model DetailSetor {
   berat                Decimal     @db.Decimal(10, 2)
   harga_deal           Decimal     @db.Decimal(15, 2)
   total_rp             Decimal     @db.Decimal(15, 2)
-  tipe_setoran         TipeSetoran // ← tambah ini
+  tipe_setoran         TipeSetoran
   transaksi            TransaksiSetor @relation(fields: [setor_id], references: [id_setor])
   barang               MasterSampah   @relation(fields: [barang_id], references: [id_barang])
 
@@ -193,16 +183,6 @@ enum KategoriUtama {
   KERTAS
   LAINNYA
   CAMPURAN
-}
-
-enum KodeDaurUlang {
-  ONE
-  TWO
-  THREE
-  FOUR
-  FIVE
-  SIX
-  SEVEN
 }
 
 enum TipeSetoran {
